@@ -1,0 +1,20 @@
+# secretos
+.env
+.env.*
+# dependencias y entornos
+node_modules/
+.venv/
+**/tts_local/
+# resultados y medios pesados
+*.mp4
+*.wav
+*.mp3
+previews/
+finales/
+_archivo/
+**/versiones/
+motor/cola/
+**/motor/cola/
+**/motor/ultimo_render.txt
+**/motor/vigilante_estado.txt
+**/motor/ffmpeg_path.txt

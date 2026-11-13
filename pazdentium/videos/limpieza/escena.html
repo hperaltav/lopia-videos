@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>PazDentium – Limpieza e higiene</title>
+<style>
+  @font-face{font-family:'Inter';font-weight:700;src:url(/motor/fonts/Inter-Bold.otf);}
+  @font-face{font-family:'Inter';font-weight:800;src:url(/motor/fonts/Inter-ExtraBold.otf);}
+  @font-face{font-family:'Inter';font-weight:900;src:url(/motor/fonts/Inter-Black.otf);}
+  @font-face{font-family:'DejaVu Sans Mono';font-weight:400;src:url(/motor/fonts/DejaVuSansMono.ttf);}
+  @font-face{font-family:'DejaVu Sans Mono';font-weight:700;src:url(/motor/fonts/DejaVuSansMono-Bold.ttf);}
+  html,body{margin:0;padding:0;overflow:hidden;background:#f5efe3;}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;}
+  canvas{position:absolute;left:0;top:0;width:1080px;height:1920px;display:block;}
+  #caption{position:absolute;left:50px;right:50px;top:1390px;text-align:center;font-family:'Inter';font-weight:800;
+    font-size:74px;line-height:1.1;color:#1d1b2a;letter-spacing:-1.5px;-webkit-text-stroke:14px #f5efe3;paint-order:stroke fill;}
+  #caption.night{color:#fff;-webkit-text-stroke:14px #18213a;}
+  #caption span{display:inline-block;margin:0 10px;}
+  .lbl{position:absolute;font-family:'DejaVu Sans Mono';font-size:40px;font-weight:700;color:#1d1b2a;letter-spacing:3px;
+    white-space:nowrap;transform:translate(-50%,-50%);-webkit-text-stroke:8px #f5efe3;paint-order:stroke fill;}
+  .lbl i{display:inline-block;width:16px;height:16px;border-radius:50%;background:currentColor;margin-right:12px;vertical-align:middle;}
+  .ui{position:absolute;opacity:0;font-family:'Inter';}
+  #meals{left:0;right:0;top:250px;display:flex;justify-content:center;gap:34px;}
+  .meal{width:260px;padding:28px 0 24px;background:#fff;border-radius:36px;text-align:center;box-shadow:0 12px 0 #d9cfbd;
+    font-weight:800;font-size:40px;color:#1d1b2a;border:5px solid #1d1b2a;}
+  .meal b{display:block;font-size:84px;color:#0f8f86;line-height:1;}
+  .meal s{display:block;text-decoration:none;font-size:56px;margin-top:6px;color:#0f8f86;}
+  .tag{font-weight:900;font-size:64px;padding:14px 34px;border-radius:30px;border:5px solid #1d1b2a;background:#fff;}
+  #timer{left:50%;top:230px;width:300px;height:300px;margin-left:-150px;}
+  #timer .t{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;
+    font-weight:900;font-size:86px;color:#1d1b2a;}
+  #timer .t small{font-size:34px;letter-spacing:4px;font-family:'DejaVu Sans Mono';}
+  #moon{left:720px;top:190px;width:200px;height:200px;border-radius:50%;box-shadow:-46px 26px 0 0 #ffe7a3;}
+  #stars span{position:absolute;color:#ffe7a3;font-size:40px;}
+  #calendar{left:110px;right:110px;top:180px;background:#fff;border:6px solid #1d1b2a;border-radius:44px;padding:36px 40px 44px;
+    box-shadow:0 18px 0 #d9cfbd;}
+  #calendar h3{margin:0 0 26px;font-size:54px;font-weight:900;color:#1d1b2a;text-align:center;letter-spacing:-1px;}
+  #calendar .g{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;}
+  #calendar .m{position:relative;text-align:center;font-family:'DejaVu Sans Mono';font-weight:700;font-size:38px;
+    padding:22px 0;border-radius:22px;background:#f5efe3;color:#1d1b2a;}
+  #calendar .m em{position:absolute;inset:-8px;border:7px solid #0f8f86;border-radius:28px;opacity:0;}
+  #calendar .m b{position:absolute;right:6px;top:-18px;font-size:46px;color:#0f8f86;opacity:0;}
+  #cta{position:absolute;inset:0;opacity:0;background:#f5efe3;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Inter';}
+  #cta img{width:820px;}
+  #cta .q{font-weight:800;font-size:66px;color:#1d1b2a;margin-bottom:60px;letter-spacing:-1.5px;text-align:center;padding:0 60px;}
+  #cta .btn{margin-top:70px;background:#2f5f86;color:#fff;font-weight:800;font-size:58px;padding:34px 64px;border-radius:999px;box-shadow:0 14px 0 #1e4062;}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+  #ching{position:absolute;opacity:0;font-family:'Inter';font-weight:900;font-size:90px;color:#f2b630;
+    -webkit-text-stroke:12px #fff;paint-order:stroke fill;transform:translate(-50%,-50%) rotate(-10deg);}
+  #nightbg{position:absolute;inset:0;background:#18213a;opacity:0;pointer-events:none;mix-blend-mode:multiply;}
+</style>
+<script type="importmap">{"imports":{"three":"/motor/node_modules/three/build/three.module.js"}}</script>
+</head>
+<body>
+<div style="position:absolute;left:-9999px;font-family:Inter"><b style="font-weight:700">a</b><b style="font-weight:800">a</b><b style="font-weight:900">a</b><span style="font-family:'DejaVu Sans Mono';font-weight:700">a</span><span style="font-family:'DejaVu Sans Mono'">a</span></div>
+<div id="stage">
+  <canvas id="c" width="1080" height="1920"></canvas>
+  <div id="nightbg"></div>
+  <div id="flash"></div>
+  <div class="ui" id="moon"></div>
+  <div class="ui" id="stars"><span style="left:180px;top:240px">✦</span><span style="left:420px;top:150px;font-size:28px">✦</span><span style="left:600px;top:330px;font-size:30px">✦</span><span style="left:950px;top:420px;font-size:26px">✦</span></div>
+  <div class="ui" id="meals">
+    <div class="meal" id="m1"><b>1</b>DESAYUNO<s>✓</s></div>
+    <div class="meal" id="m2"><b>2</b>ALMUERZO<s>✓</s></div>
+    <div class="meal" id="m3"><b>3</b>CENA<s>✓</s></div>
+  </div>
+  <div class="ui tag" id="tagSoft" style="color:#0f8f86">SUAVE ✓</div>
+  <div class="ui tag" id="tagHard" style="color:#e2483d">DURO ✗</div>
+  <div class="ui" id="timer"><svg width="300" height="300" viewBox="0 0 300 300">
+      <circle cx="150" cy="150" r="128" fill="#fff" stroke="#1d1b2a" stroke-width="10"/>
+      <circle id="timerArc" cx="150" cy="150" r="104" fill="none" stroke="#0f8f86" stroke-width="30" stroke-linecap="round"
+        stroke-dasharray="653" stroke-dashoffset="653" transform="rotate(-90 150 150)"/></svg>
+    <div class="t"><span id="timerTxt">0:00</span><small>MIN</small></div></div>
+  <div class="ui" id="calendar"><h3>Limpieza profesional</h3><div class="g" id="calg"></div></div>
+  <div id="labels"></div>
+  <div id="ching">¡CHING!</div>
+  <div id="caption"></div>
+  <div id="cta">
+    <div class="q" id="ctaq">¿Hace cuánto no te haces una limpieza?</div>
+    <img id="ctalogo" src="/marca/logo1.svg">
+    <div class="btn" id="ctabtn">Agenda tu limpieza</div>
+  </div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+const FPS = 30, DURATION = 70.5;
+const SC = Number(new URLSearchParams(location.search).get('scale') || 1);
+const W = Math.round(1080*SC), H = Math.round(1920*SC);
+if (SC !== 1) { const st = document.getElementById('stage'); st.style.transform = `scale(${SC})`; st.style.transformOrigin = '0 0';
+  document.body.style.width = W + 'px'; document.body.style.height = H + 'px'; }
+const cv = document.getElementById('c'); cv.width = W; cv.height = H;
+const clamp01 = x => Math.max(0, Math.min(1, x));
+const seg = (t, a, b) => clamp01((t - a) / (b - a));
+const eio = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const eout = x => 1 - Math.pow(1 - x, 3);
+const eback = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3*Math.pow(x-1,3) + c1*Math.pow(x-1,2); };
+const lerp = (a, b, k) => a + (b - a) * k;
+const pulse = (t, a, b) => Math.sin(Math.PI * seg(t, a, b));
+const vis = (t, a, b, f = .25) => Math.min(seg(t, a, a + f), 1 - seg(t, b - f, b));
+const inW = (t, a, b) => t >= a && t < b;
+
+// ------------------------------------------------ guion (tiempos medidos en la voz)
+const B = [[0.0,3.3],[3.55,6.38],[6.56,10.24],[10.5,15.09],[15.27,19.32],[19.52,23.68],[23.91,28.37],[28.52,33.65],[33.84,37.6],
+  [37.8,41.8],[42.0,45.05],[45.25,47.72],[47.97,51.65],[51.84,56.16],[56.35,59.8],[59.97,64.05],[64.3,68.03]];
+const LINES = ["Lavarte los dientes rápido en la mañana no es suficiente.","Cada vez que comes, quedan restos entre tus dientes.",
+"Y las bacterias los transforman en una capa pegajosa: la placa.","Si se queda ahí, tus encías se inflaman y sangran: eso es gingivitis.",
+"Y el ácido de las bacterias perfora el esmalte, hasta formar una caries.","Por eso, lávate los dientes tres veces al día, después de cada comida.",
+"Con un cepillo suave: uno duro desgasta el esmalte y lastima tus encías.","Movimientos suaves, diente por diente, sin apurarte, durante cinco minutos.",
+"Y en la noche, seda dental: llega donde el cepillo no alcanza.","Pero siempre queda algo de placa, que se endurece y se convierte en sarro.",
+"Y el sarro ya no sale con el cepillo, ni con la seda.","Ahí entra la limpieza dental profesional.",
+"El dentista retira el sarro, incluso el que se esconde bajo la encía.","Pule tus dientes para sacar las manchas, y revisa que no haya caries empezando.",
+"Así, los problemas se detectan cuando todavía son pequeños.","Por eso, hazte una limpieza cada seis meses, aunque no te duela nada.",
+"¿Hace cuánto no te haces una? Agenda tu limpieza en PazDentium."];
+const HI = [['suficiente.'],['restos'],['placa.'],['gingivitis.'],['caries.'],['tres'],['suave:'],['cinco','minutos.'],['seda','dental:'],['sarro.'],['no'],
+  ['profesional.'],['sarro,'],['manchas,'],['pequeños.'],['seis','meses,'],['PazDentium.']];
+const RED = new Set([3, 4]);
+// palabras con su instante (proporcional a las sílabas) y bloques de 2-5 palabras
+const syl = w => Math.max(1, (w.toLowerCase().match(/[aeiouáéíóú]+/g) || []).length);
+const CHUNKS = [];
+LINES.forEach((line, li) => {
+  const words = line.split(' '); const [a, b] = B[li];
+  const tot = words.reduce((s, w) => s + syl(w) + (/[,:.?]$/.test(w) ? 1 : 0), 0);
+  let acc = 0; const times = words.map(w => { const t = a + (b - a) * acc / tot; acc += syl(w) + (/[,:.?]$/.test(w) ? 1 : 0); return t; });
+  let cur = [];
+  words.forEach((w, i) => {
+    cur.push(i);
+    const end = /[,:.?]$/.test(w) && cur.length >= 2 || cur.length >= 4 || i === words.length - 1;
+    if (end) { CHUNKS.push({li, idx: cur.slice(), words, times}); cur = []; }
+  });
+});
+CHUNKS.forEach((c, i) => {
+  c.t0 = c.times[c.idx[0]];
+  const nx = CHUNKS[i + 1];
+  c.t1 = nx && nx.li === c.li ? nx.times[nx.idx[0]] : B[c.li][1] + (nx ? Math.min(0.15, nx.times[nx.idx[0]] - B[c.li][1]) : 0.4);
+});
+
+// ------------------------------------------------ render base (igual que el video de resinas)
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, preserveDrawingBuffer:true});
+renderer.setPixelRatio(1); renderer.setSize(W, H, false);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const BG = new THREE.Color('#f5efe3'), BGN = new THREE.Color('#18213a');
+const scene = new THREE.Scene(); scene.background = BG.clone();
+const camera = new THREE.PerspectiveCamera(50, 1080/1920, 0.1, 100);
+const hemi = new THREE.HemisphereLight('#ffffff', '#8a7cff', 1.1); scene.add(hemi);
+const sun = new THREE.DirectionalLight('#fffaf0', 2.2); sun.position.set(-3, 5, 6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, {left:-6, right:6, top:6, bottom:-6, near:.5, far:30}); sun.shadow.radius = 3;
+scene.add(sun);
+const frontScene = new THREE.Scene();                 // herramientas: siempre delante de dientes y encías
+const hemi2 = hemi.clone(); frontScene.add(hemi2);
+const sun2 = new THREE.DirectionalLight('#fffaf0', 2.2); sun2.position.copy(sun.position); frontScene.add(sun2);
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.ShadowMaterial({color:'#5b4fd6', opacity:.25}));
+shadowPlane.position.z = -2.2; shadowPlane.receiveShadow = true; shadowPlane.userData.noOutline = true; scene.add(shadowPlane);
+const grad = new THREE.DataTexture(new Uint8Array([150,150,150,255, 215,215,215,255, 255,255,255,255]), 3, 1);
+grad.minFilter = grad.magFilter = THREE.NearestFilter; grad.needsUpdate = true;
+let idCounter = 1;
+function toon(color, extra = {}) { const m = new THREE.MeshToonMaterial({color, gradientMap: grad, ...extra}); m.userData.id = idCounter++; return m; }
+function idColorFor(n) { return new THREE.Color((n*0.618034)%1, ((n*0.381966)+.3)%1, ((n*0.2357)+.6)%1); }
+function smoothClosed(pts, n = 240) {
+  const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(p[0], p[1], 0)), true, 'centripetal');
+  return c.getSpacedPoints(n).slice(0, -1).map(v => [v.x, v.y]);
+}
+function signedArea(p){let a=0;for(let i=0;i<p.length;i++){const[q,r]=p[i],[s,u]=p[(i+1)%p.length];a+=q*u-s*r;}return a/2;}
+function inset(poly, dfn) {
+  const s = Math.sign(signedArea(poly)); const n = poly.length;
+  return poly.map((p, i) => { const a = poly[(i-1+n)%n], b = poly[(i+1)%n];
+    let tx = b[0]-a[0], ty = b[1]-a[1]; const l = Math.hypot(tx,ty)||1; tx/=l; ty/=l; const d = dfn(p); return [p[0] - ty*s*d, p[1] + tx*s*d]; });
+}
+function clipAbove(poly, level) { const out = [];
+  for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i+1)%poly.length]; const ina = a[1] >= level, inb = b[1] >= level;
+    if (ina) out.push(a); if (ina !== inb) { const k = (level - a[1]) / (b[1] - a[1]); out.push([a[0] + (b[0]-a[0])*k, level]); } }
+  return out; }
+const shapeOf = poly => new THREE.Shape(poly.map(p => new THREE.Vector2(p[0], p[1])));
+const extrude = (poly, depth, bevel = false) => new THREE.ExtrudeGeometry(shapeOf(poly), bevel ?
+  {depth, bevelEnabled:true, bevelThickness:0.04, bevelSize:0.035, bevelSegments:3, curveSegments:1} : {depth, bevelEnabled:false, curveSegments:1});
+const COL = {ink:'#1d1b2a', teal:'#0f8f86', enamel:'#fbf6ea', dentin:'#f1d9a6', pulp:'#f08b86', gum:'#f3a1a6', gumRed:'#e2483d',
+  plaque:'#ead46f', tartar:'#c79d3e', caries:'#4b2c1c', skin:'#f1c09c', blue:'#2f5f86'};
+const add = (o, parent) => { (parent || scene).add(o); o.traverse(c => { if (c.isMesh) c.castShadow = true; }); return o; };
+
+// ------------------------------------------------ personajes (paciente y dentista)
+const UPY = new THREE.Vector3(0, 1, 0);
+function bone(mesh, len0, p, q) {   // ubica una cápsula entre dos puntos (coordenadas del personaje)
+  const d = new THREE.Vector3().subVectors(q, p); const L = d.length();
+  mesh.position.copy(p).addScaledVector(d, 0.5); mesh.quaternion.setFromUnitVectors(UPY, d.normalize()); mesh.scale.set(1, L/len0, 1);
+}
+function makePerson(opt) {
+  const g = new THREE.Group();
+  const skin = toon(opt.skin), dark = toon('#2a1d1a'), white = toon('#ffffff'), shirt = toon(opt.shirt);
+  // torso con hombros (torno)
+  const prof = [[0,-3.2],[0.98,-3.2],[1.04,-2.4],[1.0,-1.7],[0.98,-1.25],[0.86,-0.95],[0.55,-0.78],[0.3,-0.72],[0,-0.7]].map(([r,y]) => new THREE.Vector2(r, y));
+  const torso = new THREE.Mesh(new THREE.LatheGeometry(prof, 40), shirt); torso.scale.z = 0.72; g.add(torso);
+  if (opt.coat) {
+    const v = new THREE.Mesh(extrude([[-0.34,0.0],[0.34,0.0],[0,-0.62]], 0.02), toon('#9fd3e6')); v.position.set(0, -0.76, 0.6); v.rotation.x = -0.35; g.add(v);
+    const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.34, 0.04), white); pocket.position.set(0.5, -1.55, 0.72); g.add(pocket);
+    const pen = new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.035,0.4,10), toon(COL.teal)); pen.position.set(0.42,-1.32,0.76); g.add(pen);
+  } else {
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.36, 0.07, 10, 30), toon('#ffffff')); collar.rotation.x = Math.PI/2 - 0.25; collar.position.set(0, -0.78, 0.05); collar.scale.z = 0.8; g.add(collar);
+  }
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.34, 0.45, 20), skin); neck.position.y = -0.55; g.add(neck);
+  const head = new THREE.Group(); head.position.y = 0.45; g.add(head);
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(1, 40, 28), skin); skull.scale.set(0.95, 1.02, 0.92); head.add(skull);
+  for (const s of [-1, 1]) { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.19, 16, 12), skin); ear.position.set(0.9*s, 0.0, -0.05); ear.scale.set(0.55, 1, 0.8); head.add(ear); }
+  const hm = toon(opt.hair);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(1.05, 40, 20, 0, Math.PI*2, 0, opt.hairLen || 1.2), hm); hair.rotation.x = -0.42; hair.position.set(0, 0.06, -0.06); head.add(hair);
+  if (opt.long) for (const s of [-1, 1]) { const side = new THREE.Mesh(new THREE.CapsuleGeometry(0.28, 0.9, 6, 14), hm); side.position.set(0.82*s, -0.35, -0.25); side.rotation.z = 0.12*s; head.add(side); }
+  if (opt.bun) { const bun = new THREE.Mesh(new THREE.SphereGeometry(0.36, 20, 14), hm); bun.position.set(0, 0.98, -0.45); head.add(bun); }
+  if (opt.cap) { const cap = new THREE.Mesh(new THREE.SphereGeometry(1.08, 40, 20, 0, Math.PI*2, 0, 1.0), toon('#7cc5dd')); cap.rotation.x = -0.3; cap.position.y = 0.1; head.add(cap);
+}
+  const eyes = [];
+  for (const s of [-1, 1]) {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 12), dark); e.position.set(0.32*s, 0.1, 0.85); e.scale.set(0.85, 1.2, 0.55); head.add(e); eyes.push(e);
+    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.035, 8, 6), white); sh.position.set(0.32*s + 0.035, 0.16, 0.92); head.add(sh); e.userData.shine = sh;
+    const brow = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.18, 4, 8), dark); brow.rotation.z = Math.PI/2 - 0.15*s; brow.position.set(0.33*s, 0.36, 0.84); head.add(brow);
+    const cheek = new THREE.Mesh(new THREE.CircleGeometry(0.12, 20), new THREE.MeshBasicMaterial({color:'#f39a93', transparent:true, opacity:.5}));
+    cheek.material.userData.noOutline = true; cheek.position.set(0.53*s, -0.17, 0.76); cheek.rotation.y = 0.55*s; head.add(cheek);
+  }
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.09, 14, 10), skin); nose.position.set(0, -0.06, 0.93); head.add(nose);
+  const mouth = new THREE.Group(); mouth.position.set(0, -0.42, 0.86); mouth.rotation.x = -0.28; head.add(mouth);
+  const mPoly = smoothClosed([[-0.32,0.06],[0,0.09],[0.32,0.06],[0.24,-0.13],[0,-0.22],[-0.24,-0.13]], 60);
+  mouth.add(new THREE.Mesh(extrude(mPoly, 0.02), toon('#7a2433')));
+  const m2 = new THREE.Mesh(extrude(clipAbove(mPoly.map(([x,y]) => [x*0.94, y]), -0.01), 0.02), white); m2.position.z = 0.012; mouth.add(m2);
+  const tg = new THREE.Mesh(extrude(smoothClosed([[-0.14,-0.11],[0.14,-0.11],[0.09,-0.19],[-0.09,-0.19]], 30), 0.02), toon('#e8707c')); tg.position.z = 0.01; mouth.add(tg);
+  if (opt.mask) { const mk = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.3, 0.1), toon('#9fd3e6')); mk.position.set(0, -0.9, 0.5); mk.rotation.x = 0.35; head.add(mk); }
+  // brazos articulados: hombro → codo → mano
+  const arms = {};
+  for (const [side, sx] of [['R', -1], ['L', 1]]) {
+    const sh = new THREE.Mesh(new THREE.SphereGeometry(0.25, 18, 14), shirt); sh.position.set(0.92*sx, -0.98, 0); g.add(sh);
+    const up = new THREE.Mesh(new THREE.CapsuleGeometry(0.21, 1, 6, 14), shirt); g.add(up);
+    const fo = new THREE.Mesh(new THREE.CapsuleGeometry(0.18, 1, 6, 14), opt.coat ? shirt : skin); g.add(fo);
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.22, 18, 14), skin); g.add(hand);
+    arms[side] = {sh, up, fo, hand, set(el, hd) { const S = sh.position; bone(up, 1.42, S, el); bone(fo, 1.36, el, hd); hand.position.copy(hd); }};
+    arms[side].set(new THREE.Vector3(1.15*sx, -1.7, 0.15), new THREE.Vector3(1.12*sx, -2.4, 0.35));
+  }
+  g.userData = {head, eyes, arms, mouth};
+  return g;
+}
+
+// ------------------------------------------------ cepillos
+function makeBrush(soft, color) {
+  const g = new THREE.Group();
+  const handle = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 1.9, 6, 12), toon(color)); handle.position.y = -1.2; handle.scale.z = 0.6; g.add(handle);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.4, 10), toon(color)); neck.position.y = -0.1; g.add(neck);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.62, 0.1), toon(color)); head.position.y = 0.3; g.add(head);
+  const bm = toon(soft ? '#eafcff' : '#9aa0a8');
+  for (let i = 0; i < 6; i++) for (let j = 0; j < 2; j++) {
+    const tuft = new THREE.Mesh(soft ? new THREE.CapsuleGeometry(0.035, 0.18, 4, 8) : new THREE.CylinderGeometry(0.018, 0.018, 0.26, 6), bm);
+    tuft.rotation.x = Math.PI/2; tuft.position.set(-0.05 + j*0.1, 0.06 + i*0.095, 0.17); g.add(tuft);
+  }
+  return g;
+}
+
+// ------------------------------------------------ fila de dientes (vista frontal, arcada superior)
+const row = new THREE.Group(); scene.add(row);
+const WID = [0.44, 0.48, 0.58, 0.58, 0.48, 0.44];
+const teeth = []; const mEn = toon(COL.enamel);
+let xs = -WID.reduce((a,b)=>a+b+0.04,0)/2;
+WID.forEach((w, i) => {
+  const cx = xs + w/2; xs += w + 0.04;
+  const canine = i === 0 || i === 5;
+  // estilo nuevo: formas redondeadas y amables
+  const pts = canine ? [[-w/2,0.5],[w/2,0.5],[w*0.5,-0.12],[w*0.36,-0.4],[0,-0.52],[-w*0.36,-0.4],[-w*0.5,-0.12]]
+                     : [[-w/2,0.5],[w/2,0.5],[w*0.5,-0.2],[w*0.44,-0.42],[w*0.2,-0.5],[-w*0.2,-0.5],[-w*0.44,-0.42],[-w*0.5,-0.2]];
+  const poly = inset(smoothClosed(pts, 90), () => 0.05);
+  const tg = new THREE.Group(); const zf = -0.55*Math.pow(cx/1.6, 2);
+  tg.position.set(cx, 0, zf); tg.rotation.y = Math.atan(1.1*cx/2.56);   // arcada convexa
+  const mesh = new THREE.Mesh(new THREE.ExtrudeGeometry(shapeOf(poly), {depth: 0.28, bevelEnabled: true, bevelThickness: 0.09, bevelSize: 0.06, bevelSegments: 6, curveSegments: 1}), mEn);
+  mesh.position.z = -0.33; tg.add(mesh);
+  const shine = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.1, 4, 10), new THREE.MeshBasicMaterial({color: '#ffffff', transparent: true, opacity: 0.85}));
+  shine.material.userData.noOutline = true; shine.position.set(-w*0.3, -0.3, 0.06); shine.rotation.z = 0.1; tg.add(shine);
+  const stain = new THREE.Mesh(new THREE.CircleGeometry(0.06, 16), toon('#a8814f')); stain.position.set(-w*0.15 + (i%2)*0.1, -0.12 - (i%3)*0.06, 0.045); tg.add(stain);
+  stain.visible = false;
+  const tooth = {g: tg, poly, w, cx, stain, plaque: null, tartar: null, sub: null};
+  // placa y sarro (franja cerca de la encía)
+  const band = (lvl, wav) => clipAbove(poly.map(([x, y]) => [x*0.985, Math.min(y, 0.45)]), lvl).map(([x, y]) => [x, y < lvl + 0.01 ? y + wav*Math.sin(x*37 + i) : y]);   // no pasa sobre la encía
+  tooth.plaque = new THREE.Mesh(extrude(band(0.02, 0.025), 0.01), toon(COL.plaque, {transparent:true, opacity:0.9})); tooth.plaque.position.z = 0.042; tg.add(tooth.plaque);
+  tooth.tartar = new THREE.Mesh(extrude(band(0.08, 0.04), 0.03), toon(COL.tartar)); tooth.tartar.position.z = 0.05; tg.add(tooth.tartar);
+  tooth.sub = new THREE.Mesh(extrude(clipAbove(poly, 0.3).map(([x,y]) => [x*0.8, Math.min(y, 0.42)]), 0.03), toon('#8f6a2a')); tooth.sub.position.z = 0.05; tg.add(tooth.sub);
+  row.add(tg); teeth.push(tooth);
+});
+add(row);
+// caries pequeña (para la revisión)
+const smallCaries = new THREE.Mesh(new THREE.CircleGeometry(0.05, 18), toon(COL.caries)); smallCaries.position.set(0.06, -0.24, 0.047); teeth[3].g.add(smallCaries);
+// encía con festón
+const mGum = toon(COL.gum, {side: THREE.DoubleSide});
+let gum, lip;
+{ // encía curva con borde redondeado + labio natural + piel (estilo nuevo)
+  const XS = -WID.reduce((a,b)=>a+b+0.04,0)/2, curve = x => -0.55*Math.pow(Math.min(Math.abs(x), 3.4)/1.6, 2) - 0.3*Math.max(0, Math.abs(x) - 3.4);
+  const ys = x => { let y = 0.42, xx = XS; for (const w of WID) { const c = xx + w/2, d = (x - c)/(w/2); if (Math.abs(d) <= 1.15) y = Math.min(y, 0.18 + 0.2*d*d); xx += w + 0.04; } return Math.min(0.42, y); };
+  const grid = (NX, NY, x0, x1, fn) => { const pos = [], idx = [];
+    for (let i = 0; i <= NX; i++) for (let j = 0; j <= NY; j++) pos.push(...fn(x0 + (x1 - x0)*i/NX, j/NY));
+    for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) { const a0 = i*(NY+1) + j, a1 = a0 + NY + 1; idx.push(a0, a1, a0 + 1, a1, a1 + 1, a0 + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals(); return g; };
+  gum = new THREE.Mesh(grid(160, 26, -4, 4, (x, v) => { const y0 = ys(x), y = y0 + (0.8 - y0)*v; return [x, y, curve(x) + 0.15 + 0.08*Math.exp(-(y - y0)*5)]; }), mGum);
+  row.add(gum); gum.castShadow = true;
+  const NL = 200, NR = 24, lp = [], li = [];
+  for (let i = 0; i <= NL; i++) { const x = -3.9 + 7.8*i/NL, u = Math.min(1, Math.abs(x)/3.9), f = curve(x);
+    let c = 0.86 - 0.12*Math.pow(u, 3) - 0.035*Math.exp(-Math.pow(x/0.2, 2)) + 0.03*Math.exp(-Math.pow((Math.abs(x) - 0.32)/0.2, 2));
+    const h = 0.15*Math.pow(1 - u*u, 0.6) + 0.025, rz = 0.11*Math.pow(1 - u*u, 0.6) + 0.03;
+    for (let j = 0; j <= NR; j++) { const a = j/NR*Math.PI*2; lp.push(x, c + h*Math.sin(a), f + 0.17 + rz*Math.cos(a)); } }
+  for (let i = 0; i < NL; i++) for (let j = 0; j < NR; j++) { const a0 = i*(NR+1) + j, a1 = a0 + NR + 1; li.push(a0, a1, a0 + 1, a1, a1 + 1, a0 + 1); }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3)); lg.setIndex(li); lg.computeVertexNormals();
+  lip = new THREE.Mesh(lg, toon('#d96f7a', {side: THREE.DoubleSide})); row.add(lip);
+  row.add(new THREE.Mesh(grid(160, 18, -5, 5, (x, v) => { const y = 0.95 + 3.0*v; return [x, y, curve(x) + 0.12 - 0.06*(y - 0.95)]; }), toon('#f6cfae', {side: THREE.DoubleSide})));
+}
+// restos de comida y bacterias
+const crumbs = []; const cm = [toon('#7cc36a'), toon('#b5793e'), toon('#e9c46a')];
+[[-0.76,-0.18],[-0.24,0.05],[0.27,-0.28],[0.79,0.0],[-1.25,-0.05],[1.28,-0.2],[0.02,-0.4]].forEach(([x, y], i) => {
+  const c = new THREE.Mesh(new THREE.IcosahedronGeometry(0.07 + (i%3)*0.015, 0), cm[i%3]); c.position.set(x, y, 0.12 - 0.15*Math.pow(x/1.6,2)); row.add(c); crumbs.push(c);
+});
+const bugs = []; const mBug = toon('#79c98a');
+for (let i = 0; i < 12; i++) { const b = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.09, 4, 8), mBug); row.add(b); bugs.push(b); }
+const drops = [];
+for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), toon('#d7263d')); d.scale.y = 1.4; row.add(d); drops.push(d); }
+// cepillo que limpia, seda dental, instrumentos
+const brushSoft = add(makeBrush(true, '#2fb3a6'), frontScene);
+const Q_TEETH = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), Math.PI);   // cabezal → +x, cerdas → hacia los dientes
+const Q_TILT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.55).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.75)).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -0.2));   // 45° hacia la encía
+const brushHard = add(makeBrush(false, '#8a8f99'));
+const floss = new THREE.Group(); {
+  const th = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.017, 1.3, 8), toon('#ffffff')); th.position.y = -0.25; floss.add(th);
+  const prong = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.12, 4, 8), toon('#7cc5dd')); prong.position.y = -0.92; floss.add(prong);
+  const hnd = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 1.0, 6, 12), toon('#7cc5dd')); floss.add(hnd);
+  bone(hnd, 1.14, new THREE.Vector3(0, -0.95, 0), new THREE.Vector3(0.15, -1.75, 0.95)); }
+const GAPS = [];
+add(floss, row);
+for (let i = 0; i < 5; i++) { const a = teeth[i], b = teeth[i+1]; const x = (a.cx + a.w/2 + b.cx - b.w/2)/2; GAPS.push([x, -0.55*Math.pow(x/1.6,2) - 0.12]); }
+const gapCrumbs = GAPS.map(([x, z], i) => { const c = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 0), cm[i%3]); c.position.set(x, -0.2, z + 0.15); row.add(c); return c; });
+const scaler = new THREE.Group(); { const h = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.2, 14), toon('#b9c2cc')); h.position.y = 1.1; scaler.add(h);
+  const tip = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.022, 8, 20, Math.PI*1.2), toon('#7d8794')); tip.rotation.z = Math.PI*0.9; tip.position.set(0.1, -0.05, 0); scaler.add(tip);
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.7, 14), toon(COL.teal)); grip.position.y = 1.4; scaler.add(grip); }
+add(scaler, frontScene);
+const cup = new THREE.Group(); { const c1 = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.11, 0.24, 20), toon('#ff9fb0')); cup.add(c1);
+  const c2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 12), toon('#b9c2cc')); c2.position.y = 0.8; cup.add(c2);
+  const c3 = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.17, 1.6, 24), toon('#e9edf2')); c3.position.y = 2.2; cup.add(c3); }
+add(cup, frontScene);
+const lens = new THREE.Group(); { const r = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.06, 12, 40), toon('#2b2d42')); lens.add(r);
+  const gl = new THREE.Mesh(new THREE.CircleGeometry(0.4, 40), new THREE.MeshBasicMaterial({color:'#bfe3ff', transparent:true, opacity:.25}));
+  gl.material.userData.noOutline = true; lens.add(gl);
+  const hd = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.7, 4, 10), toon('#2b2d42')); hd.position.set(0.42, -0.62, 0); hd.rotation.z = 0.6; lens.add(hd); }
+add(lens, frontScene);
+const ring = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.025, 8, 30), toon(COL.gumRed)); row.add(ring);
+const flakes = [];
+for (let i = 0; i < 10; i++) { const f = new THREE.Mesh(new THREE.IcosahedronGeometry(0.04, 0), toon(COL.tartar)); scene.add(f); flakes.push(f); }
+function star4() { const s = new THREE.Shape(); const R=.2, r=.05;
+  for (let i=0;i<8;i++){const a=i*Math.PI/4+Math.PI/2; const rr=i%2?r:R; i?s.lineTo(Math.cos(a)*rr,Math.sin(a)*rr):s.moveTo(Math.cos(a)*rr,Math.sin(a)*rr);} return s; }
+const mStar = new THREE.MeshBasicMaterial({color:'#ffffff'}); mStar.userData.id = idCounter++;
+const sparkles = [[-1.1,-0.7],[0.9,-0.75],[0.0,-0.95],[1.5,0.0],[-1.6,0.2]].map(([x,y]) => { const m = new THREE.Mesh(new THREE.ShapeGeometry(star4()), mStar); m.position.set(x, y, 0.6); row.add(m); return m; });
+
+// ------------------------------------------------ corte del diente (caries por ácido), reutilizado
+const slice = new THREE.Group(); scene.add(slice);
+const OUTER = smoothClosed([[-0.95,-3.0],[-1.15,-2.0],[-1.2,-0.9],[-1.38,-0.2],[-1.45,0.5],[-1.3,1.1],[-0.95,1.45],[-0.6,1.35],
+  [-0.3,1.12],[0.0,1.08],[0.3,1.12],[0.6,1.35],[0.95,1.45],[1.3,1.1],[1.45,0.5],[1.38,-0.2],[1.2,-0.9],[1.15,-2.0],[0.95,-3.0],[0.7,-3.05],
+  [0.5,-1.9],[0.25,-1.3],[0.0,-1.2],[-0.25,-1.3],[-0.5,-1.9],[-0.7,-3.05]]);
+const DENTIN = inset(OUTER, p => p[1] > -0.3 ? 0.27 : lerp(0.07, 0.27, seg(p[1], -1.0, -0.3)));
+const PULP = smoothClosed([[-0.55,0.35],[-0.3,0.55],[0,0.45],[0.3,0.55],[0.55,0.35],[0.6,-0.4],[0.75,-1.6],[0.82,-2.7],[0.74,-2.74],[0.55,-1.7],
+  [0.3,-0.75],[0,-0.62],[-0.3,-0.75],[-0.55,-1.7],[-0.74,-2.74],[-0.82,-2.7],[-0.75,-1.6],[-0.6,-0.4]], 180);
+const SD = 0.9; const sIn = new THREE.Group(); sIn.position.z = -SD/2; slice.add(sIn);
+const sEnamel = new THREE.Mesh(extrude(OUTER, SD), toon(COL.enamel)); sIn.add(sEnamel);
+const lay = (poly, mat, z) => { const m = new THREE.Mesh(extrude(poly, 0.01), mat); m.position.z = SD + z; sIn.add(m); return m; };
+lay(DENTIN, toon(COL.dentin), 0.001); lay(PULP, toon(COL.pulp), 0.002);
+for (const sx of [-1, 1]) { const g = smoothClosed([[1.2*sx,-0.75],[2.6*sx,-0.65],[3.4*sx,-1.2],[3.4*sx,-3.6],[1.3*sx,-3.6],[1.15*sx,-2.0]], 80);
+  const gm = new THREE.Mesh(extrude(g, SD*1.05), toon(COL.gum)); gm.position.z = -0.02; sIn.add(gm); }
+add(slice);
+const mCar = toon(COL.caries); let cariesMesh = null;
+const CARIES_BASE = [[-0.13,1.2],[-0.16,0.95],[-0.36,0.84],[-0.34,0.76],[-0.12,0.73],[0,0.75],[0.14,0.72],[0.33,0.77],[0.37,0.85],[0.16,0.95],[0.13,1.2]];
+function cariesPoly(s, wob) { const top = 1.09;
+  return smoothClosed(CARIES_BASE.map(([x,y], i) => [x*(0.45+0.55*Math.min(s,1.3))*(1+0.05*Math.sin(wob+i*1.7)), top - (top - Math.min(y, top))*s]), 90); }
+const acid = [];
+for (let i = 0; i < 8; i++) { const a = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 10), toon('#b6e05a')); a.scale.y = 1.3; slice.add(a); acid.push(a); }
+
+// ------------------------------------------------ personajes en escena
+const person = makePerson({skin: COL.skin, hair: '#4a2f24', shirt: '#f2b630', bun: true, long: true});
+person.position.set(0, -0.3, 0); add(person);
+const pBrush = makeBrush(true, '#2fb3a6'); pBrush.scale.setScalar(0.8); person.add(pBrush);
+pBrush.quaternion.setFromAxisAngle(new THREE.Vector3(1, 1, 0).normalize(), Math.PI);   // cabezal → +x, cerdas → hacia la cara
+const foam = [];
+for (let i = 0; i < 9; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.05 + 0.02*(i%3), 12, 10), toon('#ffffff')); person.add(b); foam.push(b); }
+const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.1, 48), toon('#ffd36b')); sunDisc.position.set(1.6, 1.6, -1.8); scene.add(sunDisc);
+// Personaje fijo PazDentium: Dra. Verónica (estilo toon). Pelo con rulos y balayage dorado; versión clínica con gorro estampado y careta redondeada con banda verde.
+// Requiere makePerson, toon, extrude, lerp del motor de escenas. Uso: const v = makeVeronica(false /* casual */ | true /* clínica */);
+// ---------------- personaje: Dra. Verónica
+function makeVeronica(clinical) {
+  const p = makePerson({skin: '#f2c4a0', hair: '#6e4527', shirt: '#2b3a63', long: false, hairLen: 1.25, cap: false});
+  const u = p.userData, head = u.head;
+  const hairA = toon('#ffffff', {side: THREE.DoubleSide, vertexColors: true}), hairB = hairA;
+  const ROOT = new THREE.Color('#6e4527'), MID = new THREE.Color('#a8733a'), TIP = new THREE.Color('#d6a352'), HL = new THREE.Color('#e8bc66');
+  const balayage = (v, streak) => { const c = v < 0.35 ? ROOT.clone().lerp(MID, v/0.35) : MID.clone().lerp(TIP, Math.min(1, (v - 0.35)/0.5));
+    return c.lerp(HL, Math.max(0, streak)*Math.min(1, v*1.6)*0.55); };
+  // melena larga, lisa con ondas suaves: un manto que cae por atrás y los lados + mechones al frente
+  { const NA = 64, NY = 48, pos = [], idx = [], col = [];
+    for (let i = 0; i <= NA; i++) { const th = -2.35 + 4.7*i/NA;           // 0 = atrás; ±2.35 = a los lados de la cara
+      for (let j = 0; j <= NY; j++) { const v = j/NY, y = 0.45 - 2.55*v;
+        const r = 0.98 + 0.34*Math.pow(v, 1.3) + 0.24*Math.sin(v*17 + th*1.6)*Math.min(1, v*2.2) + 0.06*Math.sin(th*11 + v*6);
+        pos.push(Math.sin(th)*r, y, -Math.cos(th)*r*0.92 - 0.05); const c = balayage(v, Math.sin(th*9)*1.4 - 0.4); col.push(c.r, c.g, c.b); } }
+    for (let i = 0; i < NA; i++) for (let j = 0; j < NY; j++) { const a0 = i*(NY+1) + j, a1 = a0 + NY + 1; idx.push(a0, a1, a0 + 1, a1, a1 + 1, a0 + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); head.add(new THREE.Mesh(g, hairA)); }
+  function strand(pts, w0, w1, mat, light = 0) {        // mechón plano y ondulado que se afina hacia la punta
+    const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), N = 80, R = 14, pos = [], idx = [], col = [];
+    for (let i = 0; i <= N; i++) { const t = i/N, p = c.getPointAt(t), tg = c.getTangentAt(t), side = new THREE.Vector3().crossVectors(tg, new THREE.Vector3(0, 0, 1)).normalize();
+      const w = lerp(w0, w1, t)*(t > 0.85 ? 1 - (t - 0.85)/0.15*0.7 : 1);
+      for (let j = 0; j <= R; j++) { const a = j/R*Math.PI*2; const q = p.clone().addScaledVector(side, Math.cos(a)*w).add(new THREE.Vector3(0, 0, Math.sin(a)*w*0.35)); pos.push(q.x, q.y, q.z); const cc = balayage(t, light); col.push(cc.r, cc.g, cc.b); } }
+    for (let i = 0; i < N; i++) for (let j = 0; j < R; j++) { const a0 = i*(R+1) + j, a1 = a0 + R + 1; idx.push(a0, a1, a0 + 1, a1, a1 + 1, a0 + 1); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); return new THREE.Mesh(g, mat); }
+  for (const s of [-1, 1]) {
+    head.add(strand([[s*0.12, 0.86, 0.62], [s*0.75, 0.6, 0.66], [s*0.95, 0.05, 0.38], [s*1.18, -0.28, 0.45], [s*0.9, -0.58, 0.5], [s*1.2, -0.88, 0.5], [s*0.9, -1.18, 0.5], [s*1.22, -1.48, 0.48], [s*0.92, -1.78, 0.46], [s*1.18, -2.05, 0.44], [s*1.0, -2.3, 0.42]], 0.24, 0.2, hairA, 0.2));
+    head.add(strand([[s*0.2, 0.9, 0.5], [s*0.88, 0.48, 0.48], [s*1.12, -0.1, 0.15], [s*1.4, -0.4, 0.2], [s*1.1, -0.7, 0.22], [s*1.42, -1.0, 0.22], [s*1.12, -1.3, 0.22], [s*1.44, -1.6, 0.2], [s*1.14, -1.9, 0.16], [s*1.36, -2.2, 0.12]], 0.18, 0.15, hairB, 0.9));
+  }
+  // raya al medio + mechones que caen sobre la frente a los lados
+  // pestañas y labios
+  u.eyes.forEach(e => { const lash = new THREE.Mesh(new THREE.CapsuleGeometry(0.02, 0.14, 4, 8), toon('#2a1d1a')); lash.rotation.z = Math.PI/2; lash.position.set(e.position.x, e.position.y + 0.13, e.position.z + 0.03); head.add(lash); });
+  // uniforme: ambo azul marino con cuello en V y polera negra de manga larga debajo
+  const vneck = new THREE.Mesh(extrude([[-0.3, 0.0], [0.3, 0.0], [0, -0.55]], 0.02), toon('#1e1e26')); vneck.position.set(0, -0.76, 0.62); vneck.rotation.x = -0.32; p.add(vneck);
+  p.traverse(o => { if (o.isMesh && o.geometry.type === 'TorusGeometry') o.visible = false; });   // sin cuello blanco
+  for (const side of ['R', 'L']) { u.arms[side].fo.material = toon('#1e1e26'); }
+  if (clinical) {   // gorro clínico estampado + lentes de protección
+    // gorro clínico estampado (tamaño original, sin elástico: la banda verde es de la careta)
+    const capM = toon('#e9e4ef'); const cap = new THREE.Mesh(new THREE.SphereGeometry(1.2, 40, 20, 0, Math.PI*2, 0, 1.2), capM); cap.rotation.x = -0.3; cap.position.y = 0.12; head.add(cap);
+    for (let i = 0; i < 40; i++) { const a = 2*Math.PI*((i*0.5698403) % 1), b = 0.15 + 1.0*((i*0.7548776 + 0.3) % 1); const dot = new THREE.Mesh(new THREE.CircleGeometry(0.07, 12), toon(['#e58aa0', '#7a9cc6', '#9a7ab8'][i % 3]));
+      const v = new THREE.Vector3(Math.sin(b)*Math.sin(a), Math.cos(b), Math.sin(b)*Math.cos(a)).multiplyScalar(1.215).applyAxisAngle(new THREE.Vector3(1, 0, 0), -0.3);
+      dot.position.copy(v).add(new THREE.Vector3(0, 0.12, 0)); dot.lookAt(v.clone().multiplyScalar(3).add(new THREE.Vector3(0, 0.12, 0))); head.add(dot); }
+    // careta facial completa: visor curvo transparente desde la frente hasta bajo el mentón
+    const R0 = 1.12, T0 = 0.85, T1 = 2.3, PH = 2.1;     // careta: casquete esférico más chico y redondeado
+    const shield = new THREE.Mesh(new THREE.SphereGeometry(R0, 48, 24, Math.PI/2 - PH/2, PH, T0, T1 - T0),
+      new THREE.MeshBasicMaterial({color: '#d6f0ff', transparent: true, opacity: 0.26, side: THREE.DoubleSide, depthWrite: false}));
+    shield.material.userData.noOutline = true; shield.position.set(0, -0.05, 0.12); shield.scale.set(1, 1, 1.08); head.add(shield);
+    const sg = new THREE.TorusGeometry(R0*Math.sin(T0) + 0.03, 0.06, 8, 40, PH + 0.5); sg.rotateZ(Math.PI/2 - (PH + 0.5)/2);
+    const strap = new THREE.Mesh(sg, toon('#2fae5a')); strap.rotation.x = Math.PI/2; strap.position.set(0, -0.05 + R0*Math.cos(T0), 0.12); strap.scale.set(1, 1.08, 1); head.add(strap);   // banda verde de la careta
+    const edgeM = new THREE.MeshBasicMaterial({color: '#e3f4fc', transparent: true, opacity: 0.8}); edgeM.userData.noOutline = true;
+    const edge = new THREE.Mesh(new THREE.TorusGeometry(R0*Math.sin(T1), 0.014, 6, 40, PH), edgeM);
+    edge.geometry.rotateZ(Math.PI/2 - PH/2); edge.rotation.x = Math.PI/2; edge.position.set(0, -0.05 + R0*Math.cos(T1), 0.12); edge.scale.set(1, 1.08, 1); head.add(edge);
+  }
+  return p;
+}
+
+const dentist = makeVeronica(true);   // la dentista es la Dra. Verónica (versión clínica)
+dentist.position.set(0, -0.3, 0); add(dentist);
+const dTool = scaler.clone(); dentist.add(dTool); dTool.scale.setScalar(0.6); dTool.rotation.z = Math.PI;
+const winkStar = new THREE.Mesh(new THREE.ShapeGeometry(star4()), mStar); scene.add(winkStar);
+
+// ------------------------------------------------ contorno de tinta (ID + profundidad)
+const rtBeauty = new THREE.WebGLRenderTarget(W, H, {samples:4});
+const rtId = new THREE.WebGLRenderTarget(W, H); rtId.depthTexture = new THREE.DepthTexture(W, H);
+const post = new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.ShaderMaterial({
+  uniforms:{tBeauty:{value:rtBeauty.texture}, tId:{value:rtId.texture}, tDepth:{value:rtId.depthTexture}, res:{value:new THREE.Vector2(W,H)},
+    ink:{value:new THREE.Color(COL.ink)}, near:{value:.1}, far:{value:100}, thick:{value:2.2*SC}},
+  vertexShader:`varying vec2 vUv; void main(){vUv=uv; gl_Position=vec4(position.xy,0.,1.);}`,
+  fragmentShader:`uniform sampler2D tBeauty,tId,tDepth; uniform vec2 res; uniform vec3 ink; uniform float near,far,thick; varying vec2 vUv;
+    float lin(float d){ float z=d*2.-1.; return (2.*near*far)/(far+near-z*(far-near)); }
+    void main(){ vec2 px = thick/res; vec3 c0 = texture2D(tId,vUv).rgb; float d0 = lin(texture2D(tDepth,vUv).r); float e = 0.;
+      for(int i=0;i<8;i++){ float a = float(i)*0.785398; vec2 o = vec2(cos(a),sin(a))*px;
+        vec3 c = texture2D(tId,vUv+o).rgb; float d = lin(texture2D(tDepth,vUv+o).r);
+        e = max(e, step(0.02, distance(c,c0))); e = max(e, step(0.06*min(d,d0), abs(d-d0))); }
+      vec3 col = texture2D(tBeauty,vUv).rgb; gl_FragColor = vec4(mix(col, ink, e*0.92), 1.);
+      #include <colorspace_fragment>
+    }`}));
+const postScene = new THREE.Scene(); postScene.add(post); const postCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const idMats = new Map();
+const idMat = m => { if (!idMats.has(m)) idMats.set(m, new THREE.MeshBasicMaterial({color: idColorFor(m.userData.id || 99)})); return idMats.get(m); };
+function twoLayers(target) {
+  renderer.setRenderTarget(target); renderer.autoClear = true; renderer.render(scene, camera);
+  renderer.autoClear = false; renderer.clearDepth(); renderer.render(frontScene, camera); renderer.autoClear = true;
+}
+function renderAll() {
+  hemi2.intensity = hemi.intensity; sun2.intensity = sun.intensity;
+  twoLayers(rtBeauty);
+  const saved = []; const bgSave = scene.background; scene.background = new THREE.Color(0,0,0);
+  for (const sc of [scene, frontScene]) sc.traverse(o => { if (!o.isMesh) return; saved.push([o, o.material, o.visible]);
+    if (o.material.userData.noOutline || o === shadowPlane) { o.visible = false; return; } o.material = idMat(o.material); });
+  twoLayers(rtId);
+  for (const [o, m, v] of saved) { o.material = m; o.visible = v; }
+  scene.background = bgSave; renderer.setRenderTarget(null); renderer.render(postScene, postCam);
+}
+
+// ------------------------------------------------ cámara por escenas
+const CAM = [
+  [0.0,  [0.0, 0.2, 6.6], [0, -0.35, 0]],
+  [2.7,  [0.1, 0.15, 5.4], [0, -0.3, 0]],
+  [3.5,  [0.0, -0.22, 1.9], [0, -0.27, 0.9]],   // entra a la boca
+  [3.51, [0.0, -0.6, 6.4], [0, -0.35, 0]],      // fila de dientes
+  [6.5,  [0.3, -0.5, 6.0], [0, -0.3, 0]],
+  [10.4, [-0.2, -0.3, 5.0], [0, 0.0, 0]],
+  [15.1, [0.0, -0.2, 4.8], [0, 0.0, 0]],
+  [15.2, [0.5, -0.3, 7.6], [0, -0.9, 0]],       // corte del diente
+  [19.4, [0.3, -0.2, 7.2], [0, -0.8, 0]],
+  [19.45,[0.0, -0.8, 6.6], [0, -0.45, 0]],      // fila + comidas
+  [23.8, [0.0, -0.8, 6.6], [0, -0.45, 0]],
+  [23.85,[0.0, 0.0, 6.2], [0, 0.0, 0]],         // cepillos
+  [28.4, [0.0, 0.0, 6.0], [0, 0.0, 0]],
+  [28.45,[0.0, -0.7, 6.4], [0, -0.4, 0]],       // cepillado
+  [33.7, [0.2, -0.6, 6.0], [0, -0.35, 0]],
+  [37.7, [-0.2, -0.5, 5.6], [0, -0.3, 0]],
+  [41.9, [0.0, -0.3, 4.6], [0, 0.05, 0]],
+  [45.1, [0.0, -0.3, 4.4], [0, 0.05, 0]],
+  [45.15,[0.0, 0.3, 7.6], [0, 0.1, 0]],         // dentista
+  [47.85,[0.1, 0.4, 6.6], [0, 0.2, 0]],
+  [47.9, [0.0, -0.4, 4.6], [0, 0.05, 0]],       // limpieza
+  [51.7, [0.2, -0.4, 4.8], [0, 0.0, 0]],
+  [56.2, [0.0, -0.6, 5.6], [0, -0.3, 0]],
+  [59.9, [0.0, -0.9, 6.6], [0, -0.55, 0]],
+  [64.3, [0.0, -0.9, 6.8], [0, -0.55, 0]],
+  [70.5, [0.0, -0.9, 6.8], [0, -0.55, 0]],
+];
+function cameraAt(t) {
+  let i = 0; while (i < CAM.length - 2 && t > CAM[i+1][0]) i++;
+  const [t0, p0, g0] = CAM[i], [t1, p1, g1] = CAM[i+1]; const k = (t1 - t0) < 0.1 ? 1 : eio(seg(t, t0, t1));
+  camera.position.set(lerp(p0[0],p1[0],k) + 0.05*Math.sin(t*0.7), lerp(p0[1],p1[1],k) + 0.03*Math.sin(t*0.53), lerp(p0[2],p1[2],k));
+  camera.lookAt(lerp(g0[0],g1[0],k), lerp(g0[1],g1[1],k), lerp(g0[2],g1[2],k));
+}
+
+// ------------------------------------------------ DOM: subtítulos, rótulos, UI
+const $ = id => document.getElementById(id);
+const capEl = $('caption'), lblEl = $('labels');
+function captionAt(t) {
+  const c = CHUNKS.find(c => t >= c.t0 && t < c.t1);
+  if (!c || t > 64.25) { capEl.innerHTML = ''; return; }
+  capEl.innerHTML = c.idx.map(i => {
+    const w = c.words[i]; const k = eout(seg(t, c.times[i] - 0.04, c.times[i] + 0.1));
+    const hi = HI[c.li].includes(w); const col = hi ? (RED.has(c.li) ? '#e2483d' : '#0f8f86') : '';
+    return `<span style="opacity:${k};transform:translateY(${(1-k)*26}px) scale(${0.92+0.08*k});${col ? 'color:'+col : ''}">${w}</span>`;
+  }).join('');
+}
+const v3 = new THREE.Vector3();
+const LABELS = [ // t0,t1,text,objeto,x,y,z,color
+  [8.4, 10.3, 'PLACA', () => teeth[2].g, 0.0, 0.62, 0.1, '#b08a10'],
+  [12.6, 15.0, 'GINGIVITIS', () => row, 0.0, 1.0, 0.6, '#e2483d'],
+  [17.0, 19.3, 'CARIES', () => slice, 0.0, 1.55, 0.5, '#1d1b2a'],
+  [39.2, 41.8, 'SARRO', () => teeth[2].g, 0.0, 0.66, 0.1, '#8f6a2a'],
+  [49.4, 51.6, 'BAJO LA ENCÍA', () => row, 0.0, 1.05, 0.6, '#8f6a2a'],
+  [54.6, 59.7, 'A TIEMPO ✓', () => teeth[3].g, 0.0, -0.75, 0.1, '#0f8f86'],
+];
+function labelsAt(t) {
+  let html = '';
+  for (const [a, b, txt, obj, x, y, z, col] of LABELS) {
+    const o = vis(t, a, b, .2); if (o <= 0) continue;
+    v3.set(x, y, z); obj().localToWorld(v3); v3.project(camera);
+    html += `<div class="lbl" style="left:${(v3.x*.5+.5)*1080}px;top:${(-v3.y*.5+.5)*1920}px;opacity:${o};color:${col}"><i></i>${txt}</div>`;
+  }
+  lblEl.innerHTML = html;
+}
+const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+$('calg').innerHTML = months.map((m, i) => `<div class="m" id="mo${i}">${m}<em></em><b>✦</b></div>`).join('');
+const pop = (el, k) => { el.style.opacity = clamp01(k); el.style.transform = `scale(${Math.max(0.01, eback(clamp01(k)))})`; };
+
+// ------------------------------------------------ línea de tiempo
+const cGum = new THREE.Color(COL.gum), cGumR = new THREE.Color(COL.gumRed), cEn = new THREE.Color(COL.enamel), cEnDull = new THREE.Color('#ece0c4');
+const cPlaque = new THREE.Color(COL.plaque), cTartar = new THREE.Color(COL.tartar);
+function frame(f) {
+  const t = f / FPS;
+  cameraAt(t);
+  // ¿qué escena se ve?
+  const sPerson = t < 3.51, sSlice = inW(t, 15.2, 19.45), sDent = inW(t, 45.15, 47.9), sBrushes = inW(t, 23.85, 28.45);
+  person.visible = sPerson; sunDisc.visible = sPerson; slice.visible = sSlice; dentist.visible = sDent;
+  row.visible = !sPerson && !sSlice && !sDent && !sBrushes;
+  // noche
+  const night = vis(t, 33.6, 37.75, .35);
+  scene.background.copy(BG).lerp(BGN, night); hemi.intensity = 1.1 - 0.35*night; sun.intensity = 2.2 - 1.1*night;
+  $('moon').style.opacity = night; $('stars').style.opacity = night; capEl.className = night > 0.5 ? 'night' : '';
+  // flash entre escenas
+  const cuts = [3.51, 15.2, 19.45, 23.85, 28.45, 45.15, 47.9];
+  $('flash').style.opacity = Math.max(...cuts.map(c => (t >= c && t < c + 0.25) ? 0.85*(1 - (t - c)/0.25) : 0));
+
+  // ---- 0: paciente cepillándose rápido en la mañana
+  if (sPerson) {
+    const u = person.userData; const stroke = 0.13*Math.sin(2*Math.PI*2.6*t);
+    const mouthP = new THREE.Vector3(0, 0.03, 1.02);
+    pBrush.position.set(mouthP.x - 0.24 + stroke, mouthP.y, mouthP.z);             // el cabezal queda en la boca
+    const hand = new THREE.Vector3(pBrush.position.x - 0.62, mouthP.y - 0.02, mouthP.z - 0.02);
+    u.arms.R.set(new THREE.Vector3(-1.55, -1.05, 0.55), hand);
+    u.arms.L.set(new THREE.Vector3(1.15, -1.7, 0.15), new THREE.Vector3(1.1, -2.4, 0.35));
+    u.head.rotation.z = 0.05*Math.sin(2*Math.PI*1.3*t); u.head.rotation.x = 0.05;
+    const bl = (t % 2.4) > 2.25; u.eyes.forEach(e => e.scale.y = bl ? 0.15 : 1.2);
+    foam.forEach((b, i) => { const k = seg(t, 0.6 + i*0.12, 1.0 + i*0.12); b.visible = k > 0;
+      b.position.set(-0.22 + (i%5)*0.11 + 0.02*Math.sin(t*5 + i), -0.12 + ((i*7)%3)*0.05, 0.98 + (i%2)*0.04); b.scale.setScalar(Math.max(.01, k*(0.8 + 0.2*Math.sin(t*4 + i)))); });
+    sunDisc.position.y = 1.0 + 0.8*eout(seg(t, 0, 2.5));
+  }
+  // ---- fila de dientes: estados
+  const crumbIn = seg(t, 3.8, 5.8), crumbOut = seg(t, 8.0, 9.5) * (1 - seg(t, 19.5, 19.6));
+  crumbs.forEach((c, i) => { const k = eback(clamp01(crumbIn*1.6 - i*0.09)) * (1 - crumbOut); c.visible = k > 0.01 && t < 19.5; c.scale.setScalar(Math.max(0.01, k)); c.rotation.set(t + i, t*0.7, 0); });
+  bugs.forEach((b, i) => { const k = vis(t, 6.7 + i*0.06, 15.0, .3) * (t < 15.2 ? 1 : 0); b.visible = k > 0.01;
+    const tt = teeth[i % 6]; const a = t*1.3 + i*1.9; b.position.set(tt.cx + 0.12*Math.cos(a), 0.05 + 0.14*Math.sin(a*1.2) - 0.1*(i%2), 0.3 - 0.55*Math.pow(tt.cx/1.6,2)); b.rotation.z = a*2; b.scale.setScalar(Math.max(.01, k)); });
+  // placa: aparece (l3), se va con el cepillado (l8), queda un poco y se vuelve sarro (l10), se retira (l13)
+  const plaqueIn = eout(seg(t, 7.5, 9.6));
+  teeth.forEach((tt, i) => {
+    const brushed = seg(t, 28.9 + i*0.75, 29.6 + i*0.75);
+    let p = plaqueIn * (1 - brushed);
+    const back = seg(t, 37.9, 39.3);                     // vuelve un poco
+    const pl = Math.max(p, back*0.8);
+    const harden = seg(t, 39.2, 41.0);
+    const removed = seg(t, 48.4 + i*0.35, 49.0 + i*0.35);
+    tt.plaque.visible = pl > 0.02 && harden < 1 && t < 42; tt.plaque.material.opacity = 0.9*pl; { const sy = 0.4 + 0.6*pl; tt.plaque.scale.y = sy; tt.plaque.position.y = 0.45*(1 - sy); }
+    tt.tartar.visible = harden > 0 && removed < 1; { const sy = Math.max(0.01, harden*(1 - removed)); tt.tartar.scale.set(1, sy, 1); tt.tartar.position.y = 0.45*(1 - sy); }
+    tt.sub.visible = t > 48.0 && t < 51.2 && i >= 2 && i <= 3; { const sy = Math.max(0.01, 1 - seg(t, 50.0, 51.0)); tt.sub.scale.y = sy; tt.sub.position.y = 0.42*(1 - sy); }
+    tt.stain.visible = t > 47.9 && t < 54.6; tt.stain.scale.setScalar(Math.max(0.01, 1 - seg(t, 52.3 + i*0.2, 53.0 + i*0.2)));
+  });
+  mEn.color.copy(cEnDull).lerp(cEn, seg(t, 52.3, 54.0) + (t < 47.9 ? 1 : 0)); if (t < 47.9) mEn.color.copy(cEn);
+  smallCaries.visible = t > 51.8 && t < 60;
+  // gingivitis: encía roja e inflamada, gotas
+  const inflam = seg(t, 10.8, 12.2) * (1 - seg(t, 19.45, 19.5));
+  const hardRub = pulse(t, 26.6, 27.9) * 0.6;
+  mGum.color.copy(cGum).lerp(cGumR, Math.max(inflam * (0.85 + 0.15*Math.sin(t*6)), hardRub));
+  gum.scale.y = 1 + 0.06*inflam; gum.position.y = (t > 49.0 && t < 51.2) ? 0.1*pulse(t, 49.0, 51.2) : 0;
+  drops.forEach((d, i) => { const life = (t*0.8 + i*0.17) % 1; d.visible = inflam > 0.5 && t < 15.1; const tt = teeth[i];
+    d.position.set(tt.cx + 0.1, 0.16 - life*0.5, 0.25 - 0.55*Math.pow(tt.cx/1.6,2)); d.scale.set(1, 1.4, 1).multiplyScalar(0.6 + 0.4*(1 - life)); });
+  // comidas (l6)
+  const mealsK = vis(t, 19.7, 23.7, .3); $('meals').style.opacity = mealsK;
+  [19.9, 20.9, 22.0].forEach((a, i) => pop($('m' + (i + 1)), seg(t, a, a + 0.4) * mealsK));
+  // cepillos suave vs duro (l7)
+  brushSoft.visible = sBrushes || inW(t, 28.45, 33.7) || inW(t, 42.0, 45.1);
+  brushHard.visible = sBrushes;
+  if (sBrushes) {
+    const k = eback(seg(t, 23.9, 24.6));
+    brushSoft.position.set(-0.85, lerp(-3, 0.2, k), 0); brushSoft.rotation.set(0.3, 0.6 + 0.15*Math.sin(t*2), -0.15);
+    brushHard.position.set(0.85, lerp(-3, 0.2, eback(seg(t, 24.2, 24.9))), 0); brushHard.rotation.set(0.3, -0.6, 0.15 + 0.25*pulse(t, 26.2, 27.8)*Math.sin(t*25));
+    brushSoft.scale.setScalar(1.25); brushHard.scale.setScalar(1.25);
+  }
+  const tagS = seg(t, 24.4, 24.8) * (1 - seg(t, 28.2, 28.4)), tagH = seg(t, 25.4, 25.8) * (1 - seg(t, 28.2, 28.4));
+  $('tagSoft').style.left = '130px'; $('tagSoft').style.top = '330px'; pop($('tagSoft'), tagS);
+  $('tagHard').style.left = '620px'; $('tagHard').style.top = '330px'; pop($('tagHard'), tagH);
+  // cepillado diente por diente + temporizador (l8)
+  if (inW(t, 28.45, 33.7)) {
+    const p = seg(t, 28.8, 33.3); const idx = Math.min(5, Math.floor(p*6)); const tt = teeth[idx];
+    brushSoft.scale.setScalar(0.9); brushSoft.quaternion.copy(Q_TILT).multiply(Q_TEETH);
+    const zf = -0.55*Math.pow(tt.cx/1.6,2);
+    brushSoft.position.set(tt.cx - 0.22 + 0.07*Math.cos(t*12), -0.16 + 0.06*Math.sin(t*12), zf + 0.36);
+  }
+  const tmK = vis(t, 28.7, 33.6, .3); pop($('timer'), tmK);
+  const tp = seg(t, 29.0, 33.2); $('timerArc').setAttribute('stroke-dashoffset', 653*(1 - tp));
+  const secs = Math.round(tp*300); $('timerTxt').textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  // seda dental de noche (l9)
+  floss.visible = inW(t, 34.4, 37.6);
+  gapCrumbs.forEach((c, i) => { const at = 34.75 + i*0.55; const out = seg(t, at + 0.25, at + 0.6);
+    c.visible = inW(t, 33.9, at + 0.6); c.position.set(GAPS[i][0] + 0.5*out, -0.2 - 0.9*out*out, GAPS[i][1] + 0.15 + 0.6*out); c.rotation.set(t*3, t*2, 0); });
+  if (floss.visible) { const p = seg(t, 34.6, 37.4); const gi = Math.min(4, Math.floor(p*5)); const [gx, gz] = GAPS[gi];
+    floss.scale.setScalar(1); floss.rotation.set(0, 0, 0); floss.position.set(gx, 0.05*Math.sin(t*14) - 0.05, gz); }
+  // el sarro resiste al cepillo y a la seda (l11)
+  if (inW(t, 42.0, 45.1)) { const b1 = pulse(t, 42.3, 43.4), b2 = pulse(t, 43.6, 44.8);
+    brushSoft.scale.setScalar(0.9); brushSoft.quaternion.copy(Q_TILT).multiply(Q_TEETH);
+    brushSoft.position.set(0.0 + 3*seg(t, 43.4, 43.9), 0.08 + 0.18*(1 - b1) + 2*seg(t, 43.4, 43.9), 0.3 + 0.12*(1 - b1)); }
+  if (inW(t, 43.6, 45.0)) { floss.visible = true; floss.scale.setScalar(1); floss.rotation.set(0, 0, 0); const [gx, gz] = GAPS[2]; floss.position.set(gx, -0.12 - 0.12*Math.abs(Math.sin(t*9)), gz); }
+  // dentista: guiño + ¡ching! (l12)
+  if (sDent) { const u = dentist.userData; const w = pulse(t, 46.35, 46.95);
+    u.eyes[1].scale.y = 1.25 - 1.15*w; u.eyes[1].userData.shine.visible = w < 0.3;
+    u.head.rotation.z = -0.08*w;
+    const hnd = new THREE.Vector3(-1.2, -0.25 + 0.05*Math.sin(t*3), 0.75); u.arms.R.set(new THREE.Vector3(-1.62, -1.15, 0.3), hnd);
+    u.arms.L.set(new THREE.Vector3(1.15, -1.7, 0.15), new THREE.Vector3(1.1, -2.4, 0.35));
+    dTool.position.set(hnd.x, hnd.y + 0.84, hnd.z); dTool.rotation.set(0, 0, Math.PI + 0.12);
+    v3.set(0.33, 0.12, 0.9); u.head.localToWorld(v3); winkStar.position.copy(v3).add(new THREE.Vector3(0.28, 0.25, 0.3));
+    const sk = pulse(t, 46.45, 47.4); winkStar.visible = sk > 0.02; winkStar.scale.setScalar(Math.max(.01, 1.6*sk)); winkStar.rotation.z = t*3; winkStar.lookAt(camera.position);
+    const ck = pulse(t, 46.45, 47.6); const ch = $('ching'); ch.style.opacity = ck; ch.style.left = '770px'; ch.style.top = '520px';
+    ch.style.transform = `translate(-50%,-50%) rotate(-10deg) scale(${0.6 + 0.6*eback(clamp01(seg(t, 46.45, 46.8)))})`;
+  } else { winkStar.visible = false; $('ching').style.opacity = 0; }
+  // instrumento: retira el sarro (l13)
+  scaler.visible = inW(t, 47.95, 51.6);
+  if (scaler.visible) { const p = seg(t, 48.3, 51.0); const idx = Math.min(5, Math.floor(p*6)); const tt = teeth[idx];
+    const sub = inW(t, 49.6, 51.0); scaler.rotation.set(0, 0, 0.5);
+    scaler.position.set(tt.cx + 0.05*Math.sin(t*18), (sub ? 0.32 : 0.12) + 0.05*Math.cos(t*18), 0.5 - 0.55*Math.pow(tt.cx/1.6,2)); }
+  flakes.forEach((fl, i) => { const life = (t*1.5 + i*0.1) % 1; fl.visible = inW(t, 48.4, 51.0);
+    const tt = teeth[Math.min(5, Math.floor(seg(t, 48.3, 51.0)*6))]; fl.position.set(tt.cx + Math.cos(i*2.4)*life*0.8, 0.1 + life*0.7 - life*life*1.4, 0.6 + Math.sin(i)*0.3); fl.scale.setScalar(1 - life); });
+  // pulido (l14 inicio)
+  cup.visible = inW(t, 51.9, 54.4);
+  if (cup.visible) { const p = seg(t, 52.2, 54.1); const tt = teeth[Math.min(5, Math.floor(p*6))]; cup.scale.setScalar(0.6); cup.rotation.set(0.5, 0, -0.6);
+    cup.position.set(tt.cx + 0.06*Math.sin(t*10), -0.12 + 0.04*Math.cos(t*10), 0.5 - 0.55*Math.pow(tt.cx/1.6,2)); }
+  // lupa: encuentra la caries pequeña (l14–l15)
+  lens.visible = inW(t, 54.3, 59.8);
+  if (lens.visible) { const k = eio(seg(t, 54.3, 55.0)); const tt = teeth[3]; const sx = lerp(-1.4, tt.cx + 0.06, k) + 0.04*Math.sin(t*2);
+    lens.position.set(sx, -0.24, 0.85); lens.scale.setScalar(1 + 0.15*pulse(t, 55.0, 55.6)); }
+  ring.visible = inW(t, 55.0, 59.8); ring.position.set(teeth[3].cx + 0.06, -0.24, 0.48); ring.scale.setScalar(Math.max(.01, eback(seg(t, 55.0, 55.4))));
+  smallCaries.scale.setScalar(t > 57.3 ? Math.max(0.01, 1 - seg(t, 57.3, 58.2)) : 1);
+  // calendario cada 6 meses (l16)
+  const calK = vis(t, 60.0, 64.2, .35); pop($('calendar'), calK);
+  [[2, 61.0], [8, 62.0]].forEach(([mi, a]) => { const el = $('mo' + mi); const k = seg(t, a, a + 0.35);
+    el.querySelector('em').style.opacity = k; el.querySelector('b').style.opacity = k; el.style.background = k > 0.5 ? '#d6f0ec' : '#f5efe3'; });
+  // brillo final
+  sparkles.forEach((sp, i) => { const k = pulse(t, 53.6 + i*0.12, 55.2 + i*0.12) + pulse(t, 60.2 + i*0.15, 63.8 + i*0.15)*0.9;
+    sp.visible = k > 0.01 && row.visible; sp.scale.setScalar(Math.max(.01, k*1.4)); sp.rotation.z = t*1.4; });
+  // caries por ácido en el corte (l5)
+  if (sSlice) {
+    const s = lerp(0.25, 1.7, eio(seg(t, 15.8, 18.8)));
+    if (cariesMesh) { sIn.remove(cariesMesh); cariesMesh.geometry.dispose(); }
+    cariesMesh = new THREE.Mesh(extrude(cariesPoly(s, t*2), 0.01), mCar); cariesMesh.position.z = SD + 0.004; sIn.add(cariesMesh);
+    acid.forEach((a, i) => { const life = (t*0.9 + i*0.125) % 1; a.visible = true; a.position.set(-0.25 + (i%4)*0.17, 2.3 - life*1.25, 0.5); a.scale.set(1, 1.3, 1).multiplyScalar(1 - 0.6*life); });
+    slice.rotation.y = -0.16 + 0.05*Math.sin(t*0.4);
+  }
+  // CTA
+  const ck = seg(t, 64.3, 64.9); $('cta').style.opacity = eio(ck);
+  const q = eback(seg(t, 64.6, 65.2)), lg = eback(seg(t, 65.1, 65.9)), bt = eback(seg(t, 66.4, 67.0));
+  $('ctaq').style.opacity = clamp01(q); $('ctaq').style.transform = `translateY(${(1-q)*50}px)`;
+  $('ctalogo').style.opacity = clamp01(lg*1.2); $('ctalogo').style.transform = `scale(${0.85 + 0.15*lg})`;
+  $('ctabtn').style.opacity = clamp01(bt); $('ctabtn').style.transform = `scale(${Math.max(0.01, bt)})`;
+
+  captionAt(t); labelsAt(t); renderAll();
+}
+window.TOTAL_FRAMES = Math.round(DURATION * FPS);
+window.renderFrame = f => { frame(f); return true; };
+window.GPU = (() => { try { const g = document.createElement('canvas').getContext('webgl2'); const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return 'desconocido'; } })();
+document.fonts.ready.then(() => { window.READY = true; });
+</script>
+</body>
+</html>

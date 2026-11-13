@@ -1,0 +1,23 @@
+PAZDENTIUM - VIDEOS ANIMADOS
+============================
+
+Renders automáticos (recomendado):
+  iniciar_vigilante.cmd -> deja esa ventana abierta (puede estar minimizada). Claude deja pedidos en
+                           motor\cola\ y el vigilante renderiza solo, sin que nadie toque el PC.
+  motor\iniciar_con_windows.cmd -> (opcional, una vez) hace que el vigilante parta solo al encender el PC.
+
+Renders manuales (doble clic):
+  vista_previa.cmd  -> vista previa rápida (15 FPS) del video modificado más recientemente  -> previews\
+  final.cmd         -> versión final (30 FPS, máxima calidad) del mismo video               -> finales\
+  (Para renderizar otro video, arrastra su carpeta de videos\ sobre el .cmd)
+
+Carpetas:
+  videos\<nombre>\   escena (.html), mezcla (.wav), voz, guion  — se usa siempre el archivo más reciente
+                     versiones\ guarda automáticamente las escenas anteriores
+  previews\          <nombre>.mp4  (se reemplaza en cada vista previa)
+  finales\           pazdentium_<nombre>.mp4  (listos para publicar)
+  marca\             logos y personajes (Dra. Verónica)
+  motor\             render (no tocar): render.ts, vigilante.ts, fuentes, three.js, ffmpeg, cola de pedidos
+  herramientas_voz\  ElevenLabs (la clave está en .env.local)
+  tts_local\         voz local Chatterbox (respaldo)
+  _archivo\          versiones y pruebas antiguas
