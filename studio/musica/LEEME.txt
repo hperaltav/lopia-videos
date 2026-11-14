@@ -1,0 +1,3 @@
+Pon aqui archivos .mp3 o .wav de musica (con licencia para uso comercial).
+El render final elige uno al azar como fondo, en bucle y con fundido al final.
+Si la carpeta esta vacia, el video sale sin audio.

@@ -1,0 +1,16 @@
+<script>
+/* Lopia Studio: reproducción en vivo dentro del Studio (solo con ?studio) */
+(()=>{const q=new URLSearchParams(location.search);if(!q.has('studio'))return;
+let playing=true,t0=performance.now(),off=0,last=-1,sent=false;const fps=+(q.get('fps')||15),step=Math.max(1,Math.round(30/fps));
+const total=()=>window.TOTAL_FRAMES||450,cur=()=>playing?off+(performance.now()-t0)/1000:off;
+function loop(){if(window.READY){if(!sent){sent=true;parent.postMessage({studio:1,ready:1},'*');}
+ if(window.__dirty){window.__dirty=false;last=-1;}
+ const dur=total()/30;let t=cur();if(t>=dur){off=0;t0=performance.now();t=0;}
+ const f=Math.min(total()-1,Math.floor(t*30/step)*step);if(f!==last){last=f;try{window.renderFrame(f);}catch(e){console.error(e);}}
+ parent.postMessage({studio:1,t,dur,playing},'*');}requestAnimationFrame(loop);}
+addEventListener('message',e=>{const d=e.data||{};
+ if(d.cmd==='play'&&!playing){t0=performance.now();playing=true;}
+ if(d.cmd==='pause'&&playing){off=cur();playing=false;}
+ if(d.cmd==='seek'){off=Math.max(0,d.t);t0=performance.now();last=-1;}});
+requestAnimationFrame(loop);})();
+</script>

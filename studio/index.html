@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lopia Content Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: un estudio creativo serio y cálido; el cliente siente que tiene un equipo de producción.
+   IDEA: una sala de edición: la vista previa vertical en un teléfono es el centro, todo lo demás la rodea.
+   PICTURE: el teléfono con el video corriendo en vivo, y las miniaturas reales de los tres estilos.
+   COLOUR and TYPE: tinta casi negra en la barra lateral, fondo blanco, coral como acento único y lila de apoyo; Sora para títulos, Inter para texto.
+   LAYOUT: barra lateral fija + área de trabajo; en móvil la barra pasa a ser una fila arriba. */
+:root{color-scheme:light dark;
+ --bg:light-dark(#fbfaf8,#121116);--panel:light-dark(#ffffff,#1b1a21);--ink:light-dark(#16141c,#f1eef6);--mute:light-dark(#6b6776,#a39fb0);
+ --line:light-dark(#e7e3ec,#2d2b36);--side:#16141c;--sideink:#f1eef6;--acc:#ff5a3c;--accink:#ffffff;--lila:light-dark(#ece6ff,#2c2540);--lilaink:light-dark(#4b3a8f,#cbbcff)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+[hidden]{display:none!important}
+a.btn{text-decoration:none;color:inherit}a.btn.pri{color:var(--accink)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3{font-family:Sora,Inter,sans-serif;line-height:1.08;margin:0;text-wrap:balance}
+h1{font-size:clamp(30px,4vw,44px);font-weight:800}h2{font-size:24px;font-weight:700}h3{font-size:17px;font-weight:700}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.app{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+aside{background:var(--side);color:var(--sideink);padding:22px 16px;display:flex;flex-direction:column;gap:22px;position:sticky;top:0;height:100vh}
+.brand{font-family:Sora,Inter,system-ui,sans-serif;font-weight:800;font-size:20px;letter-spacing:.02em;line-height:1}.brand small{display:block;font:500 13px Inter;opacity:.65;margin-top:6px;letter-spacing:0}
+.client{display:flex;align-items:center;gap:10px;background:#24212d;border-radius:12px;padding:10px}
+.client img{width:36px;height:36px;border-radius:9px;background:#fff;object-fit:contain;padding:3px}
+.client b{display:block;font-size:14px}.client span{font-size:13px;opacity:.65}
+nav{display:flex;flex-direction:column;gap:4px}
+nav a{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;padding:11px 12px;border-radius:10px;font-weight:500;min-height:44px}
+nav a:hover{background:#24212d}nav a.on{background:var(--acc);color:var(--accink)}
+nav svg{width:20px;height:20px;flex:none}
+.quota{margin-top:auto;font-size:13px;opacity:.85}.bar{height:8px;border-radius:9px;background:#2d2a37;margin-top:8px;overflow:hidden}.bar i{display:block;height:100%;background:var(--acc)}
+main{padding:clamp(20px,3.4vw,44px);max-width:1240px;width:100%}
+.view{display:none}.view.on{display:block;animation:in .25s ease}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+@media (prefers-reduced-motion:reduce){.view.on{animation:none}}
+.lead{color:var(--mute);margin:10px 0 0;max-width:62ch}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px}
+.big{display:flex;flex-direction:column;gap:14px;text-align:left;border:2px solid var(--line);background:var(--panel);border-radius:22px;padding:24px;min-height:220px;transition:border-color .15s,transform .15s}
+.big:hover{border-color:var(--acc);transform:translateY(-2px)}
+.big .ico{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:var(--lila);color:var(--lilaink)}
+.big.hot .ico{background:var(--acc);color:#fff}
+.big p{margin:0;color:var(--mute)}
+.thumbs{display:flex;gap:8px;margin-top:auto}.thumbs img{width:54px;height:96px;object-fit:cover;border-radius:8px;border:1px solid var(--line)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-weight:600}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--accink)}.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.between{justify-content:space-between}
+.sec{margin-top:36px}.sec>h2{margin-bottom:14px}
+.steps{display:flex;gap:6px;margin:22px 0 26px;flex-wrap:wrap}
+.steps span{flex:1 1 120px;padding:10px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:14px;color:var(--mute)}
+.steps span.on{border-color:var(--acc);color:var(--ink);font-weight:600}.steps span.done{color:var(--ink)}
+.opt{text-align:left;border:2px solid var(--line);background:var(--panel);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:10px}
+.opt.sel{border-color:var(--acc);box-shadow:0 0 0 4px color-mix(in srgb,var(--acc) 18%,transparent)}
+.opt .dur{font:800 34px Sora,Inter,sans-serif;line-height:1}.opt .dur small{font:600 15px Inter;color:var(--mute)}
+.beats{display:flex;gap:3px;height:28px;border-radius:8px;overflow:hidden}
+.beats i{display:flex;align-items:center;justify-content:center;font:600 12px Inter;font-style:normal;color:#fff;white-space:nowrap;overflow:hidden}
+.style-img{aspect-ratio:9/16;width:100%;object-fit:cover;object-position:top;border-radius:12px;border:1px solid var(--line);background:#eee}
+label.f{display:flex;flex-direction:column;gap:6px;font-weight:600;font-size:14px}
+label.f input,label.f textarea,label.f select,.prompt textarea{font-size:16px;font-weight:400;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel)}
+textarea{resize:vertical;min-height:84px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;border:1px solid var(--line);background:var(--panel);min-height:44px;font-size:14px}
+.chip img{width:32px;height:32px;border-radius:999px;object-fit:cover;background:#fff}
+.chip.sel{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 10%,var(--panel))}
+.chip.txt{padding:6px 14px}
+.editor{display:grid;grid-template-columns:minmax(260px,360px) minmax(0,1fr);gap:28px;align-items:start}
+.phone{background:#0d0c10;border-radius:34px;padding:12px;box-shadow:0 30px 60px -30px rgba(20,10,30,.55)}
+.screen{position:relative;aspect-ratio:9/16;border-radius:24px;overflow:hidden;background:#222}
+.screen iframe{position:absolute;left:0;top:0;width:432px;height:768px;border:0;transform-origin:0 0;pointer-events:none}
+.screen .lq{position:absolute;right:10px;top:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:3px 8px;border-radius:99px}
+.screen .load{position:absolute;inset:0;display:grid;place-items:center;color:#fff;background:#1b1a21;font-size:14px;text-align:center;padding:20px}
+.ctrl{display:flex;align-items:center;gap:10px;margin-top:12px}
+.ctrl input[type=range]{flex:1;accent-color:var(--acc);height:44px}
+.ctrl .t{font-variant-numeric:tabular-nums;font-size:13px;color:var(--mute);white-space:nowrap}
+.ibtn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--panel);display:grid;place-items:center}
+.hist{display:flex;flex-direction:column;gap:10px;max-height:300px;overflow:auto;padding-right:4px}
+.msg{padding:12px 14px;border-radius:14px;background:var(--lila);font-size:15px}
+.msg.me{background:var(--panel);border:1px solid var(--line)}
+.msg b{display:block;font-size:13px;margin-bottom:2px}
+.prompt{display:flex;flex-direction:column;gap:10px}
+.note{font-size:13px;color:var(--mute)}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:3px 9px;border-radius:99px;background:var(--lila);color:var(--lilaink);white-space:nowrap}
+.tag.ok{background:#dff5e6;color:#17663a}.tag.rev{background:#fff1d6;color:#8a5a00}.tag.draft{background:var(--lila)}
+.asset{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;display:flex;flex-direction:column}
+.asset .im{aspect-ratio:1;background:repeating-conic-gradient(var(--line) 0 25%,transparent 0 50%) 0 0/18px 18px;display:grid;place-items:center}
+.asset .im img{width:100%;height:100%;object-fit:contain}
+.asset .im.cover img{object-fit:cover}
+.asset div.meta{padding:10px 12px;font-size:14px}.asset b{display:block}.asset span{color:var(--mute);font-size:13px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:18px 0}
+.tabs button{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:0 16px;min-height:40px;font-weight:500}
+.tabs button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.vid{display:grid;grid-template-columns:72px minmax(0,1fr) auto;gap:16px;align-items:center;padding:12px;border-bottom:1px solid var(--line)}
+.vid img{width:72px;height:128px;object-fit:cover;object-position:top;border-radius:10px;border:1px solid var(--line)}
+.vid p{margin:2px 0 0;color:var(--mute);font-size:14px}
+.board{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:16px}
+.pan{background:var(--panel);border:2px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;transition:border-color .15s}
+.pan.now{border-color:var(--acc)}
+.pan .go{border:0;padding:0;background:none;position:relative;display:block}
+.pan img{width:100%;aspect-ratio:9/16;object-fit:cover;display:block;background:#eee}
+.pan .go span{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.6);color:#fff;font-size:12px;font-weight:600;padding:2px 8px;border-radius:99px;font-variant-numeric:tabular-nums}
+.pan textarea{border:0;border-top:1px solid var(--line);background:none;font-size:14px;line-height:1.4;padding:10px;min-height:80px;resize:none;overflow:hidden;border-radius:0;field-sizing:content}
+.pan textarea:focus{outline:none;background:color-mix(in srgb,var(--acc) 6%,var(--panel))}
+.pan select.vis{border:0;border-top:1px solid var(--line);background:var(--bg);font-size:13px;font-weight:600;padding:8px 10px;min-height:40px;border-radius:0;color:var(--lilaink)}
+.pan.edited{border-color:var(--lilaink)}.pan.edited .go span{background:var(--lilaink)}
+.sbbar{position:sticky;bottom:12px;margin-top:16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:var(--ink);color:var(--bg);padding:10px 12px 10px 18px;border-radius:16px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5)}
+.sbbar .btn{border-color:transparent}.sbbar .btn:not(.pri){color:var(--ink);background:var(--bg)}
+.stp{flex:1 1 140px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font-size:14px;color:var(--mute);min-height:44px}
+.stp small{font-size:13px;font-weight:600;color:var(--acc)}
+.stp.on{border-color:var(--acc);color:var(--ink);font-weight:600}.stp.done{color:var(--ink)}.stp:disabled{cursor:default}
+.modal{position:fixed;inset:0;background:rgba(10,8,14,.55);display:none;place-items:center;padding:16px;z-index:9}
+.modal.on{display:grid}.modal .card{max-width:440px;width:100%}
+.gen{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 20px;text-align:center}
+.spin{width:48px;height:48px;border-radius:50%;border:5px solid var(--lila);border-top-color:var(--acc);animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(1turn)}}
+.prog{width:min(360px,100%);height:8px;border-radius:9px;background:var(--lila);overflow:hidden}.prog i{display:block;height:100%;width:0;background:var(--acc);transition:width .3s}
+.sample{font-size:12px;color:var(--mute);margin-top:6px}
+@media(max-width:900px){.g3{grid-template-columns:minmax(0,1fr)}.editor{grid-template-columns:minmax(0,1fr)}.phone{max-width:340px;margin:auto}}
+@media(max-width:760px){.app{grid-template-columns:minmax(0,1fr)}aside{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px;padding:12px}
+ .client,.quota{display:none}nav{flex-direction:row;flex-wrap:wrap;gap:2px}nav a{padding:8px 10px}nav a span{font-size:14px}.g2{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){nav a svg{display:none}.vid{grid-template-columns:56px minmax(0,1fr)}.vid img{width:56px;height:100px}.vid .row{grid-column:1/-1}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div class="brand">LOPIA<small>Content Studio</small></div>
+  <div class="client"><img src="marca/logo1.svg" alt=""><div><b>PazDentium</b><span>Plan 6 videos/mes</span></div></div>
+  <nav id="nav">
+    <a href="#inicio" data-v="inicio"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg><span>Inicio</span></a>
+    <a href="#crear" data-v="crear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span>Crear</span></a>
+    <a href="#contenidos" data-v="contenidos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span>Mis contenidos</span></a>
+    <a href="#assets" data-v="assets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><circle cx="17" cy="17" r="4"/></svg><span>Assets</span></a>
+  </nav>
+  <div class="quota">Videos este mes: <b id="qn">3</b> de 6<div class="bar"><i id="qb" style="width:50%"></i></div></div>
+</aside>
+<main>
+
+<section class="view" id="v-inicio">
+  <h1>Hola PazDentium, ¿qué quieres hacer hoy?</h1>
+  <p class="lead">Crea un video nuevo para tus redes o retoma uno que ya hiciste. Todo lo que generes queda guardado en tus assets para reutilizarlo.</p>
+  <div class="grid g2 sec">
+    <button class="big hot" data-go="crear"><span class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></span>
+      <h2>Crear contenido nuevo</h2><p>Elige el tipo de video, el estilo y cuéntanos qué quieres comunicar. Te mostramos una vista previa en segundos.</p>
+      <div class="thumbs"><img src="thumbs/animado.jpg" alt=""><img src="thumbs/collage.jpg" alt=""><img src="thumbs/fieltro.jpg" alt=""></div></button>
+    <button class="big" data-go="contenidos"><span class="ico"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></span>
+      <h2>Editar contenido previo</h2><p>Abre uno de tus videos, pide cambios con tus palabras y genera una nueva versión.</p>
+      <div class="thumbs" id="recent"></div></button>
+  </div>
+  <div class="sec"><div class="row between"><h2>Tus assets</h2><a class="btn" href="#assets">Ver todos</a></div><div class="grid g4" id="homeAssets"></div></div>
+</section>
+
+<section class="view" id="v-crear">
+  <h1>Crear contenido nuevo</h1>
+  <div class="steps" id="steps"></div>
+  <div id="st1">
+    <div class="grid g3" id="formats"></div>
+  </div>
+  <div id="st2" hidden>
+    <div class="grid g3" id="styles"></div>
+  </div>
+  <div id="st3" hidden>
+    <div class="grid g2" id="modes" style="margin-bottom:16px">
+      <button class="opt" data-m="auto"><span class="tag" style="align-self:flex-start">Recomendado</span><h3>Créalo por mí, luego reviso</h3><p class="note" style="margin:0">Lopia elige el tema, escribe el guion y escoge los assets a partir de tu negocio y tus videos anteriores. Tú solo revisas la vista previa y pides cambios.</p></button>
+      <button class="opt" data-m="manual"><h3>Quiero darle indicaciones</h3><p class="note" style="margin:0">Cuéntanos el tema, el mensaje y elige los assets. Lo que dejes en blanco lo completamos nosotros.</p></button>
+    </div>
+    <div class="card" id="autoNote"><h3>Esto es lo que haremos por ti</h3><ul class="note" style="margin:8px 0 0;padding-left:20px"><li>Elegimos un tema que todavía no hayas publicado.</li><li>Escribimos el guion con la estructura del tipo de video que elegiste.</li><li>Usamos tus personajes y tu logo, y creamos lo que falte.</li></ul>
+      <label class="f" style="margin-top:14px">¿Alguna idea o pedido? (opcional)<input id="bHint" placeholder="Ej.: que sea sobre blanqueamiento"></label></div>
+    <div class="grid g2" id="manualForm">
+      <div class="card grid">
+        <label class="f">¿De qué trata el video?<input id="bTema" value="La limpieza dental cada seis meses" placeholder="Si lo dejas en blanco, lo proponemos"></label>
+        <label class="f" id="hookWrap">Gancho de los primeros segundos<input id="bHook" value="¿Sabías que el sarro no sale con el cepillo?"></label>
+        <label class="f">Mensaje principal<textarea id="bMsg">Una limpieza profesional elimina el sarro y la placa que el cepillado no alcanza, y previene caries y enfermedad de las encías.</textarea></label>
+        <label class="f">Llamado a la acción<input id="bCta" value="Agenda tu evaluación"></label>
+        <p class="sample">Texto de ejemplo; reemplázalo por el tuyo. Los campos en blanco los completa Lopia.</p>
+      </div>
+      <div class="card"><h3>Assets para este video</h3><p class="note">Elige personajes, fotos y elementos de marca. Lo que no elijas lo crea el sistema y queda guardado para la próxima.</p><div class="chips" id="pick"></div><label class="row note" style="margin-top:12px;min-height:44px"><input type="checkbox" id="autoAssets" style="width:20px;height:20px;accent-color:var(--acc)"> Que Lopia elija los assets por mí</label></div>
+    </div>
+  </div>
+  <div id="st4" hidden><div class="gen"><div class="spin"></div><h2 id="genT">Generando vista previa…</h2><div class="prog"><i id="genP"></i></div><p class="note" id="genS">Armando las escenas</p></div></div>
+  <div class="row between sec" id="wizNav"><button class="btn" id="back">Volver</button><button class="btn pri" id="next">Continuar</button></div>
+</section>
+
+<section class="view" id="v-editor">
+  <div class="row between"><div><h1 id="edTitle">Vista previa</h1><p class="lead" id="edSub"></p></div><span class="tag" id="edVer">Versión 1</span></div>
+  <div class="editor sec">
+    <div>
+      <div class="phone"><div class="screen" id="screen"><iframe id="pv" title="Vista previa del video"></iframe><span class="lq">Vista previa · baja calidad</span><div class="load" id="pvLoad">Cargando escena…</div></div></div>
+      <div class="ctrl"><button class="ibtn" id="pp" aria-label="Pausar"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" id="ppI"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg></button>
+        <input type="range" id="seek" min="0" max="100" step="0.1" value="0" aria-label="Posición"><span class="t" id="tm">0:00 / 0:00</span></div>
+      <div class="beats" id="edBeats" style="margin-top:6px"></div>
+    </div>
+    <div class="grid" style="gap:18px">
+      <div class="card"><h3>¿Qué quieres cambiar?</h3>
+        <div class="hist" id="hist" style="margin-top:12px"></div>
+        <form class="prompt" id="pf" style="margin-top:12px">
+          <textarea id="pt" placeholder="Ej.: haz el texto final más grande y agrega a Verónica saludando al final"></textarea>
+          <div class="chips" id="sugg"></div>
+          <div class="row between"><span class="note">Describe el cambio con tus palabras; la IA reescribe el guion.</span><button class="btn pri" id="ps">Aplicar cambios</button></div>
+        </form>
+      </div>
+      <div class="card row between"><div><h3>¿Te gusta cómo quedó?</h3><p class="note" style="margin:4px 0 0">Generamos la versión final en alta calidad (30 cuadros por segundo, 1080×1920).</p></div><button class="btn pri" id="approve">Aprobar y generar final</button></div>
+    </div>
+  </div>
+  <div class="sec">
+    <h2>Guion y storyboard</h2><p class="note" id="sbNote" style="margin:6px 0 0"></p>
+    <div class="board" id="board"></div>
+    <div class="sbbar" id="sbbar" hidden><span id="sbn"></span><div class="row"><button class="btn" id="sbUndo">Descartar</button><button class="btn pri" id="sbApply">Aplicar cambios al video</button></div></div>
+  </div>
+</section>
+
+<section class="view" id="v-contenidos">
+  <div class="row between"><h1>Mis contenidos</h1><a class="btn pri" href="#crear">Crear nuevo</a></div>
+  <div class="card sec" style="padding:4px 8px" id="vids"></div>
+</section>
+
+<section class="view" id="v-assets">
+  <div class="row between"><div><h1>Assets</h1><p class="lead">Fotos, personajes, logos y todo lo que el sistema genera para tus videos. Se reutilizan en cada creación nueva.</p></div>
+    <div class="row"><label class="btn" for="up">Subir fotos</label><input type="file" id="up" accept="image/*" multiple hidden><button class="btn pri" id="aiBtn">Generar con IA</button></div></div>
+  <div class="tabs" id="atabs"></div>
+  <div class="grid g4" id="agrid"></div>
+</section>
+</main>
+</div>
+
+<div class="modal" id="modal"><div class="card grid" id="mBody"></div></div>
+
+<script src="storyboard.js"></script>
+<script>
+{
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const FORMATS = [
+  {id:'promo', name:'Promo corta', dur:20, desc:'Una oferta o anuncio directo, con tu marca y un llamado a la acción claro.',
+   beats:[['Gancho',3,'#ff5a3c'],['Oferta',11,'#7b61ff'],['Llamado',6,'#16141c']]},
+  {id:'viral', name:'Viral con gancho', dur:45, desc:'Empieza con una pregunta o dato que detiene el scroll, desarrolla y cierra con un giro.',
+   beats:[['Gancho',4,'#ff5a3c'],['Desarrollo',22,'#7b61ff'],['Giro',11,'#b38cff'],['Llamado',8,'#16141c']]},
+  {id:'edu', name:'Educativo', dur:60, desc:'Explica un tratamiento o un cuidado de tu negocio, paso a paso, para generar confianza.',
+   beats:[['Problema',10,'#ff5a3c'],['Explicación',30,'#7b61ff'],['Beneficio',12,'#b38cff'],['Llamado',8,'#16141c']]}];
+const STYLES = [
+  {id:'animado', name:'Animado 3D', desc:'Personajes y objetos con volumen, colores suaves y textos con movimiento.', img:'thumbs/animado.jpg'},
+  {id:'collage', name:'Collage de revista', desc:'Recortes de papel que se arrugan, se estiran y se desenrollan.', img:'thumbs/collage.jpg'},
+  {id:'fieltro', name:'Fieltro', desc:'Muñecos y piezas de tela cosidas, animados en stop-motion.', img:'thumbs/fieltro.jpg'}];
+const SCENE = {animado:'escenas/animado.html', collage:'escenas/collage.html', fieltro:'escenas/fieltro.html', brackets:'escenas/brackets.html', resinas:'escenas/resinas.html'};
+let assets = [
+  {id:'vero', name:'Dra. Verónica', kind:'Personajes', src:'marca/veronica.jpg', cover:1, used:4},
+  {id:'verof', name:'Verónica de fieltro', kind:'Personajes', src:'thumbs/vero_fieltro.jpg', cover:1, used:1, ai:1},
+  {id:'logo2', name:'Logo rosado', kind:'Marca', src:'marca/logo2.svg', used:5},
+  {id:'logo1', name:'Logo principal', kind:'Marca', src:'marca/logo1.svg', used:2},
+  {id:'dientes', name:'Arcada de dientes', kind:'Generados con IA', src:'thumbs/fieltro.jpg', cover:1, used:2, ai:1},
+  {id:'reloj', name:'Recortes de papel', kind:'Generados con IA', src:'thumbs/collage_b.jpg', cover:1, used:1, ai:1},
+  {id:'cta', name:'Parche "Agenda tu evaluación"', kind:'Generados con IA', src:'thumbs/fieltro_cta.jpg', cover:1, used:1, ai:1}];
+let vids = [
+  {id:'v1', title:'Limpieza dental', style:'Animado 3D', fmt:'Educativo', dur:'1:10', status:'Publicado', scene:'animado', img:'thumbs/animado.jpg'},
+  {id:'v2', title:'Tipos de brackets', style:'Animado 3D', fmt:'Educativo', dur:'0:52', status:'Publicado', scene:'brackets', img:'thumbs/brackets.jpg'},
+  {id:'v3', title:'Resinas estéticas', style:'Animado 3D', fmt:'Viral con gancho', dur:'0:47', status:'Publicado', scene:'resinas', img:'thumbs/resinas.jpg'},
+  {id:'v4', title:'Limpieza dental (collage)', style:'Collage de revista', fmt:'Educativo', dur:'1:10', status:'En revisión', scene:'collage', img:'thumbs/collage.jpg'},
+  {id:'v5', title:'Saludo de Verónica', style:'Fieltro', fmt:'Promo corta', dur:'0:15', status:'Borrador', scene:'fieltro', img:'thumbs/fieltro.jpg'}];
+const wiz = {step:1, fmt:null, style:null, mode:'auto', picks:new Set(['vero','logo2'])};
+const AUTO_TOPIC = {promo:'Evaluación dental con 20% de descuento', viral:'¿Por qué sangran tus encías al cepillarte?', edu:'Blanqueamiento dental: cómo funciona y cuánto dura'};
+let ed = null;
+
+const tagCls = s => s === 'Publicado' || s === 'Listo' ? 'ok' : s === 'En revisión' || s === 'Generando final' ? 'rev' : 'draft';
+const beatsHtml = b => { const tot = b.reduce((a, x) => a + x[1], 0); return b.map(([n, d, c]) => `<i style="flex:${d/tot};background:${c}" title="${n} · ${d} s">${d/tot > .14 ? n : ''}</i>`).join(''); };
+const fmtT = s => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2, '0')}`;
+const assetCard = a => `<div class="asset"><div class="im ${a.cover ? 'cover' : ''}"><img src="${a.src}" alt="" loading="lazy"></div><div class="meta"><b>${a.name}</b><span>${a.ai ? 'Generado por el sistema · ' : ''}${a.used ? `Usado en ${a.used} video${a.used > 1 ? 's' : ''}` : 'Sin usar todavía'}</span></div></div>`;
+
+function show(v) {
+  if (!$('#v-' + v)) v = 'inicio';
+  if (v === 'editor' && !ed) v = 'contenidos';
+  $$('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
+  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.v === (v === 'editor' ? 'contenidos' : v)));
+  if (v !== 'editor') stopPreview();
+  if (v === 'inicio') renderHome(); if (v === 'contenidos') renderVids(); if (v === 'assets') renderAssets(); if (v === 'crear') renderWiz();
+  if (v === 'editor') startPreview();
+  scrollTo(0, 0);
+}
+addEventListener('hashchange', () => show(location.hash.slice(1)));
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) location.hash = g.dataset.go; });
+
+function renderHome() {
+  $('#recent').innerHTML = vids.slice(0, 3).map(v => `<img src="${v.img}" alt="">`).join('');
+  $('#homeAssets').innerHTML = assets.slice(0, 4).map(assetCard).join('');
+}
+function renderVids() {
+  $('#vids').innerHTML = vids.map(v => `<div class="vid"><img src="${v.img}" alt=""><div><h3>${v.title}</h3><p>${v.fmt} · ${v.style} · ${v.dur}</p><span class="tag ${tagCls(v.status)}">${v.status}</span></div>
+    <div class="row">${v.final ? `<a class="btn pri" href="${v.final}" download="${v.title}.mp4">Descargar</a>` : ''}<button class="btn" data-ed="${v.id}">Editar</button></div></div>`).join('');
+}
+$('#vids').addEventListener('click', e => { const b = e.target.closest('[data-ed]'); if (!b) return; const v = vids.find(x => x.id === b.dataset.ed);
+  const f = FORMATS.find(x => x.name === v.fmt) || FORMATS[2];
+  ed = {vid:v, title:v.title, sub:`${v.fmt} · ${v.style}`, scene:v.scene, beats:f.beats, ver:1, plan:v.plan || null, total:f.dur, thumbs:[], hist:[{me:0, t:'Este es tu video tal como quedó. Escribe abajo lo que quieres cambiar.'}]};
+  location.hash = 'editor'; });
+
+// ---------- asistente de creación
+function renderWiz() {
+  const F = FORMATS.find(x => x.id === wiz.fmt), S = STYLES.find(x => x.id === wiz.style);
+  const vals = [F && `${F.name} · ${F.dur} s`, S && S.name, wiz.step > 3 || wiz.step === 3 ? (wiz.mode === 'auto' ? 'Lo crea Lopia' : 'Con tus indicaciones') : null, null];
+  $('#steps').innerHTML = ['Tipo de video', 'Estilo', 'Contenido', 'Vista previa'].map((n, i) => `<button class="stp ${i + 1 === wiz.step ? 'on' : ''} ${i + 1 < wiz.step ? 'done' : ''}" data-step="${i + 1}" ${i + 1 < wiz.step && wiz.step < 4 ? '' : 'disabled'}>${i + 1} · ${n}${vals[i] && (i + 1 < wiz.step || (i === 2 && wiz.step === 3)) ? `<small>✓ ${vals[i]}</small>` : ''}</button>`).join('');
+  [1, 2, 3, 4].forEach(i => $('#st' + i).hidden = i !== wiz.step);
+  $('#wizNav').hidden = wiz.step === 4; $('#back').style.visibility = wiz.step === 1 ? 'hidden' : 'visible';
+  $('#next').textContent = wiz.step === 3 ? 'Generar vista previa' : 'Continuar';
+  $('#next').disabled = (wiz.step === 1 && !wiz.fmt) || (wiz.step === 2 && !wiz.style);
+  $('#formats').innerHTML = FORMATS.map(f => `<button class="opt ${wiz.fmt === f.id ? 'sel' : ''}" data-f="${f.id}"><div class="dur">${f.dur}<small> segundos</small></div><h3>${f.name}</h3><p class="note" style="margin:0">${f.desc}</p><div class="beats">${beatsHtml(f.beats)}</div></button>`).join('');
+  $('#styles').innerHTML = STYLES.map(s => `<button class="opt ${wiz.style === s.id ? 'sel' : ''}" data-s="${s.id}"><img class="style-img" src="${s.img}" alt=""><h3>${s.name}</h3><p class="note" style="margin:0">${s.desc}</p></button>`).join('');
+  $('#hookWrap').hidden = wiz.fmt !== 'viral';
+  $$('#modes [data-m]').forEach(b => b.classList.toggle('sel', b.dataset.m === wiz.mode)); $('#autoNote').hidden = wiz.mode !== 'auto'; $('#manualForm').hidden = wiz.mode !== 'manual';
+  $('#pick').style.opacity = $('#autoAssets').checked ? .4 : 1; $('#pick').style.pointerEvents = $('#autoAssets').checked ? 'none' : '';
+  $('#pick').innerHTML = assets.map(a => `<button class="chip ${wiz.picks.has(a.id) ? 'sel' : ''}" data-p="${a.id}"><img src="${a.src}" alt="">${a.name}</button>`).join('');
+}
+$('#formats').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { wiz.fmt = b.dataset.f; renderWiz(); } });
+$('#styles').addEventListener('click', e => { const b = e.target.closest('[data-s]'); if (b) { wiz.style = b.dataset.s; renderWiz(); } });
+$('#modes').addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (b) { wiz.mode = b.dataset.m; renderWiz(); } });
+$('#autoAssets').addEventListener('change', renderWiz);
+$('#pick').addEventListener('click', e => { const b = e.target.closest('[data-p]'); if (!b) return; const id = b.dataset.p; wiz.picks.has(id) ? wiz.picks.delete(id) : wiz.picks.add(id); renderWiz(); });
+$('#steps').addEventListener('click', e => { const b = e.target.closest('[data-step]'); if (b && !b.disabled) { wiz.step = +b.dataset.step; renderWiz(); } });
+$('#back').onclick = () => { wiz.step = Math.max(1, wiz.step - 1); renderWiz(); };
+$('#next').onclick = () => { if (wiz.step < 3) { wiz.step++; renderWiz(); return; } wiz.step = 4; renderWiz(); generate(); };
+// ---------- generación del guion (Claude, o plantillas si no está disponible)
+const PLAYER = {animado:'escenas/p_animado.html', collage:'escenas/p_collage.html', fieltro:'escenas/p_fieltro.html'};
+const VIS = {persona:'Paciente cepillándose', dientes:'Dientes sanos', restos:'Restos de comida', placa:'Placa bacteriana', sarro:'Sarro', cepillado:'Cepillado', limpieza:'Limpieza profesional',
+  brillo:'Diente brillante', caries:'Caries', doctora:'Dra. Verónica', reloj:'Reloj / tiempo', calendario:'Calendario', pregunta:'Texto grande', cta:'Cierre con logo'};
+const NSC = {promo:[4, 6], viral:[7, 10], edu:[9, 13]};
+let samplerP = null;
+const localSampler = {json: async (prompt) => { const r = await fetch('/api/ia', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({prompt})}); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'IA'); return d.json; }};
+const getSampler = () => samplerP || (samplerP = estadoP.then(st => st ? (st.ia ? localSampler : null) : (window.claude && window.claude.use ? window.claude.use('sample').catch(() => null) : null)));
+const visRules = Object.entries(VIS).map(([k, v]) => `${k} (${v.toLowerCase()})`).join(', ');
+function briefNow() {
+  const f = FORMATS.find(x => x.id === wiz.fmt), s = STYLES.find(x => x.id === wiz.style);
+  return {f, s, auto: wiz.mode === 'auto', hint: $('#bHint').value.trim(), tema: $('#bTema').value.trim(), hook: $('#bHook').value.trim(), msg: $('#bMsg').value.trim(), cta: $('#bCta').value.trim() || 'Agenda tu evaluación',
+    assets: $('#autoAssets').checked ? 'los elige Lopia' : assets.filter(a => wiz.picks.has(a.id)).map(a => a.name).join(', ')};
+}
+function genPrompt(b) {
+  const [n1, n2] = NSC[b.f.id];
+  return `Eres guionista de videos verticales cortos para redes sociales de PazDentium, una clínica dental en Chile. Su dentista y personaje es la Dra. Verónica Cabrera.
+El video NO lleva voz: todo el mensaje se entiende con los textos en pantalla.
+Tipo de video: ${b.f.name} de ${b.f.dur} segundos. Estructura: ${b.f.beats.map(x => `${x[0]} (~${x[1]} s)`).join(', ')}.
+Estilo visual: ${b.s.name}.
+${b.auto ? `El cliente pidió que tú elijas el tema: algo útil y atractivo para pacientes de una clínica dental.${b.hint ? ` Su idea: "${b.hint}".` : ''}`
+  : `Tema: ${b.tema || '(propón uno)'}${b.f.id === 'viral' ? `\nGancho inicial: ${b.hook || '(propón uno)'}` : ''}\nMensaje principal: ${b.msg || '(propón uno)'}\nLlamado a la acción: ${b.cta}`}
+Assets a usar: ${b.assets || 'logo de PazDentium'}.
+Reglas:
+- Entre ${n1} y ${n2} escenas. "dur" en segundos; la suma debe ser exactamente ${b.f.dur}. Cada escena entre 2.5 y 7 s; la última entre 3.5 y 5 s.
+- "texto": lo que se lee en pantalla, máximo 10 palabras, español de Chile, tuteo, cercano y claro.
+- "visual": uno de estos (en minúsculas, sin otros): ${visRules}. "cta" solo en la última escena, y la última escena siempre es "cta". "pregunta" sirve para ganchos o frases clave.
+- "destacar": una o dos palabras del texto que se resaltan.
+- La primera escena debe enganchar en menos de 3 segundos.
+Responde solo con JSON, sin comentarios: {"titulo":"…","escenas":[{"dur":3,"texto":"…","visual":"…","destacar":"…"}],"cta":{"boton":"…"}}`;
+}
+function normalize(p, total, ctaTxt) {
+  let sc = (p && Array.isArray(p.escenas) ? p.escenas : []).filter(s => s && s.texto).map(s => ({dur: Math.max(2, +s.dur || 3), texto: String(s.texto).trim().slice(0, 140), visual: VISUALES.includes(s.visual) ? s.visual : 'dientes', destacar: String(s.destacar || '').trim()}));
+  if (!sc.length) return null;
+  if (sc[sc.length - 1].visual !== 'cta') sc.push({dur: 4, texto: '¿Te animas? Te esperamos', visual: 'cta', destacar: ''});
+  sc.forEach((s, i) => { if (s.visual === 'cta' && i < sc.length - 1) s.visual = 'dientes'; });
+  const sum = sc.reduce((a, s) => a + s.dur, 0); sc.forEach(s => s.dur = Math.round(s.dur*total/sum*10)/10);
+  const drift = Math.round((total - sc.reduce((a, s) => a + s.dur, 0))*10)/10; sc[sc.length - 1].dur = Math.round((sc[sc.length - 1].dur + drift)*10)/10;
+  return {titulo: String(p.titulo || 'Video nuevo').slice(0, 80), escenas: sc, cta: {boton: String((p.cta && p.cta.boton) || ctaTxt || 'Agenda tu evaluación').slice(0, 40)}};
+}
+const VISUALES = Object.keys(VIS);
+const DEF_TXT = {persona:'Te lavas los dientes cada mañana', restos:'Pero siempre quedan restos entre tus dientes', placa:'Las bacterias forman una capa: la placa', sarro:'La placa se endurece y se vuelve sarro',
+  caries:'Y el sarro abre paso a las caries', cepillado:'Cepíllate diente por diente', reloj:'Durante al menos dos minutos', doctora:'La Dra. Verónica te ayuda', limpieza:'Una limpieza profesional retira el sarro',
+  brillo:'Y tu sonrisa vuelve a brillar', calendario:'Hazte un control cada seis meses', dientes:'Tu sonrisa te lo agradecerá'};
+const TPL = {promo:[['pregunta', 3.5], ['brillo', 5], ['doctora', 4.5], ['dientes', 3], ['cta', 4]],
+  viral:[['pregunta', 4], ['persona', 4], ['restos', 4], ['placa', 5], ['sarro', 5], ['caries', 5], ['doctora', 5], ['limpieza', 5], ['brillo', 4], ['cta', 4]],
+  edu:[['pregunta', 4], ['persona', 5], ['restos', 5], ['placa', 5], ['sarro', 5], ['caries', 5], ['cepillado', 5], ['reloj', 5], ['doctora', 5], ['limpieza', 5], ['calendario', 6], ['cta', 5]]};
+function localPlan(b) {
+  const tema = b.auto ? (b.hint || AUTO_TOPIC[b.f.id]) : (b.tema || AUTO_TOPIC[b.f.id]);
+  const hook = (!b.auto && b.hook) || (/^¿/.test(tema) ? tema : `¿Sabías esto sobre ${tema.toLowerCase()}?`);
+  const sent = []; if (!b.auto && b.msg) b.msg.split(/(?<=[.!?])\s+/).forEach(x => { let cur = '';
+    x.split(/,\s+/).forEach(pt => { const nx = cur ? cur + ', ' + pt : pt; if (nx.split(/\s+/).length > 10 && cur) { sent.push(cur); cur = pt; } else cur = nx; }); if (cur) sent.push(cur); });
+  for (let i = 0; i < sent.length; i++) { const w = sent[i].split(/\s+/); if (w.length > 11) sent.splice(i, 1, w.slice(0, Math.ceil(w.length/2)).join(' '), w.slice(Math.ceil(w.length/2)).join(' ')); }
+  let k = 0; const take = v => sent[k] ? sent[k++].replace(/\.$/, '') : DEF_TXT[v];
+  const esc = TPL[b.f.id].map(([v, d]) => ({dur: d, visual: v, texto: v === 'pregunta' ? hook : v === 'cta' ? '¿Te animas? Te esperamos en PazDentium' : take(v), destacar: ''}));
+  esc.forEach(s => { const w = s.texto.split(/\s+/).filter(x => x.length > 4); s.destacar = (w[w.length - 1] || '').replace(/[¿?¡!.,:;]/g, ''); });
+  return normalize({titulo: tema.charAt(0).toUpperCase() + tema.slice(1), escenas: esc, cta: {boton: b.cta}}, b.f.dur, b.cta);
+}
+async function generate() {
+  const b = briefNow(), stages = ['Escribiendo el guion', 'Armando el storyboard', 'Preparando personajes y assets', 'Animando la vista previa'];
+  let k = 0; $('#genP').style.width = '8%'; $('#genS').textContent = stages[0];
+  const iv = setInterval(() => { k = Math.min(k + 1, 3); $('#genP').style.width = Math.min(92, 8 + k*26) + '%'; $('#genS').textContent = stages[k]; }, 1400);
+  let plan = null, src = 'plantilla';
+  try { const sampler = await getSampler();
+    if (sampler) { const out = await sampler.json(genPrompt(b), {modelTier: 'default'}); plan = normalize(out, b.f.dur, b.cta); if (plan) src = 'claude'; } } catch (e) { console.warn('sample', e); }
+  if (!plan) plan = localPlan(b);
+  clearInterval(iv); $('#genP').style.width = '100%';
+  const v = {id:'n' + Date.now(), title:plan.titulo, style:b.s.name, fmt:b.f.name, dur:fmtT(b.f.dur), status:'Borrador', scene:b.s.id, img:b.s.img, plan};
+  vids.unshift(v); saveVids(); wiz.step = 1; wiz.fmt = wiz.style = null; $('#bHint').value = '';
+  const me = b.auto ? `${b.f.name} de ${b.f.dur} s en estilo ${b.s.name.toLowerCase()}. Créalo por mí${b.hint ? ': ' + b.hint : ''}.` : `${b.f.name} de ${b.f.dur} s en estilo ${b.s.name.toLowerCase()} sobre «${b.tema || 'tema a proponer'}».`;
+  ed = {vid:v, title:v.title, sub:`${b.f.name} · ${b.s.name}`, scene:b.s.id, beats:b.f.beats, ver:1, plan, total:b.f.dur, thumbs:[],
+    hist:[{me:1, t:me}, {me:0, t: src === 'claude' ? `Escribí un guion de ${plan.escenas.length} escenas: «${plan.titulo}». Puedes corregir cualquier texto en el storyboard o pedirme cambios aquí.`
+      : `Armé el guion con una plantilla de ${plan.escenas.length} escenas (la IA no está disponible en esta vista). Corrige los textos en el storyboard: la vista previa se actualiza al instante.`}]};
+  location.hash = 'editor';
+}
+
+// ---------- editor con vista previa en vivo
+let pvTimer = null, playing = true, dur = 0, snapId = 0;
+function fit() { const sc = $('#screen'), fr = $('#pv'); fr.style.transform = `scale(${sc.clientWidth/432})`; }
+new ResizeObserver(fit).observe($('#screen'));
+const pv = () => $('#pv').contentWindow;
+function startPreview() {
+  $('#edTitle').textContent = ed.title; $('#edSub').textContent = ed.sub; $('#edVer').textContent = 'Versión ' + ed.ver;
+  $('#edBeats').innerHTML = beatsHtml(ed.beats); renderHist(); renderBoard();
+  $('#sugg').innerHTML = (ed.plan ? ['Hazlo más divertido', 'Agrega a la Dra. Verónica al principio', 'Que el gancho sea una pregunta', 'Menos texto en cada escena'] : ['Haz los textos más grandes', 'Agrega a Verónica al final'])
+    .map(t => `<button type="button" class="chip txt">${t}</button>`).join('');
+  $('#pvLoad').hidden = false; $('#pvLoad').textContent = 'Cargando escena…'; playing = true; setPP();
+  const fr = $('#pv'), src = (ed.plan ? PLAYER[ed.scene] : SCENE[ed.scene]) + '?scale=0.4&studio=1&fps=15';
+  if (!fr.src.endsWith(src)) { fr.dataset.ready = ''; fr.src = src; } else { pv().postMessage({cmd:'play'}, '*'); if (ed.plan) sendPlan(true); }
+  fit(); clearTimeout(pvTimer); pvTimer = setTimeout(() => { if (!$('#pvLoad').hidden) $('#pvLoad').innerHTML = `<div><img src="${ed.vid.img}" alt="" style="width:60%;border-radius:12px;opacity:.85"><p>La animación no pudo cargarse en este navegador. Prueba abrir el Studio en Chrome o Safari actualizado.</p></div>`; }, 15000);
+}
+function sendPlan(seek0) { if (!ed || !ed.plan || $('#pv').dataset.ready !== '1') return; pv().postMessage({cmd:'plan', plan:ed.plan}, '*'); if (seek0) pv().postMessage({cmd:'seek', t:0}, '*'); }
+function requestSnaps(only) { if (!ed.plan) return; const L = planList(); const idx = only != null ? [only] : L.map((_, i) => i);
+  snapId++; pv().postMessage({cmd:'snap', id:snapId + ':' + idx.join(','), ts:idx.map(i => L[i].t0 + Math.min(L[i].dur*0.6, L[i].dur - 0.3))}, '*'); }
+function stopPreview() { const fr = $('#pv'); if (fr.src) fr.contentWindow?.postMessage({cmd:'pause'}, '*'); }
+addEventListener('message', e => { const d = e.data; if (!d || !d.studio) return;
+  if (d.ready) { $('#pv').dataset.ready = '1'; if (ed && ed.plan) sendPlan(true); return; }
+  if (d.planOk) { if (!ed.thumbs || !ed.thumbs.length || ed.needSnaps) { ed.needSnaps = false; requestSnaps(); } return; }
+  if (d.snaps) { const idx = String(d.id).split(':')[1].split(',').map(Number); idx.forEach((i, j) => { ed.thumbs[i] = d.snaps[j]; const im = $(`#board .pan[data-i="${i}"] img`); if (im) im.src = d.snaps[j]; });
+    if (idx.includes(0) && ed.vid) { ed.vid.img = ed.thumbs[0]; saveVids(); } return; }
+  $('#pvLoad').hidden = true; dur = d.dur; markNow(d.t); if (!seeking) $('#seek').value = d.t/d.dur*100; $('#tm').textContent = `${fmtT(d.t)} / ${fmtT(d.dur)}`; });
+let seeking = false;
+$('#seek').addEventListener('input', () => { seeking = true; pv().postMessage({cmd:'seek', t:$('#seek').value/100*dur}, '*'); });
+$('#seek').addEventListener('change', () => seeking = false);
+function setPP() { $('#ppI').innerHTML = playing ? '<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>'; $('#pp').setAttribute('aria-label', playing ? 'Pausar' : 'Reproducir'); }
+$('#pp').onclick = () => { playing = !playing; pv().postMessage({cmd:playing ? 'play' : 'pause'}, '*'); setPP(); };
+
+// ---------- guion y storyboard
+let sbNow = -1;
+function planList() { let t = 0; return ed.plan.escenas.map(s => { const o = {...s, t0:t, t1:t + s.dur}; t += s.dur; return o; }); }
+const sbList = () => ed.plan ? planList() : ((window.SB && SB[ed.scene]) || []);
+const BLANK = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="9" height="16"><rect width="9" height="16" fill="#ece6f3"/></svg>');
+function renderBoard() {
+  sbNow = -1; const L = sbList(); ed.edits = ed.edits || {};
+  if (ed.plan) {
+    $('#board').innerHTML = L.map((p, i) => `<div class="pan" data-i="${i}"><button class="go" data-t="${p.t0}" aria-label="Ver la escena ${i + 1}"><img src="${(ed.thumbs || [])[i] || BLANK}" alt=""><span>${fmtT(p.t0)}</span></button>
+      <select class="vis" data-v="${i}" aria-label="Imagen de la escena ${i + 1}">${VISUALES.filter(k => k !== 'cta' || i === L.length - 1).map(k => `<option value="${k}" ${k === p.visual ? 'selected' : ''}>${VIS[k]}</option>`).join('')}</select>
+      <textarea data-e="${i}" aria-label="Texto de la escena ${i + 1}">${p.texto}</textarea></div>`).join('');
+    $('#sbbar').hidden = true;
+  } else {
+    $('#board').innerHTML = L.map((p, i) => { const orig = p.voz || p.pantalla, val = ed.edits[i] ?? orig;
+      return `<div class="pan ${ed.edits[i] !== undefined ? 'edited' : ''}" data-i="${i}"><button class="go" data-t="${p.t0}" aria-label="Ver la escena ${i + 1}"><img src="${p.img}" alt="" loading="lazy"><span>${fmtT(p.t0)}</span></button>
+      <textarea data-e="${i}" aria-label="Texto de la escena ${i + 1}">${val}</textarea></div>`; }).join('');
+    sbBar();
+  }
+  $('#sbNote').textContent = ed.plan ? 'Edita el texto o la imagen de cualquier escena: la vista previa cambia al instante.' : 'Este video ya está publicado: edita los textos y aplica los cambios para generar una nueva versión.';
+  $$('#board textarea').forEach(grow);
+}
+function grow(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 2 + 'px'; }
+function sbBar() { const n = Object.keys(ed.edits || {}).length; $('#sbbar').hidden = !n; $('#sbn').textContent = `${n} escena${n > 1 ? 's' : ''} editada${n > 1 ? 's' : ''}`; }
+function markNow(t) { const L = sbList(); let k = L.findIndex(p => t >= p.t0 && t < p.t1); if (k < 0 && L.length && t < L[0].t0) k = 0; if (k === sbNow) return; sbNow = k;
+  $$('#board .pan').forEach(x => x.classList.toggle('now', +x.dataset.i === k)); }
+let liveT = null, snapT = null;
+function liveUpdate(i, seekTo) { saveVids(); clearTimeout(liveT); liveT = setTimeout(() => { sendPlan(false); if (seekTo != null) pv().postMessage({cmd:'seek', t:seekTo}, '*');
+  clearTimeout(snapT); snapT = setTimeout(() => requestSnaps(i), 700); }, 250); }
+$('#board').addEventListener('click', e => { const g = e.target.closest('.go'); if (g) pv().postMessage({cmd:'seek', t:+g.dataset.t + 0.05}, '*'); });
+$('#board').addEventListener('input', e => { const ta = e.target.closest('[data-e]'); if (!ta) return; grow(ta); const i = +ta.dataset.e;
+  if (ed.plan) { ed.plan.escenas[i].texto = ta.value; liveUpdate(i, planList()[i].t0 + Math.min(1.6, planList()[i].dur*0.5)); return; }
+  const p = sbList()[i], orig = p.voz || p.pantalla;
+  if (ta.value.trim() === orig.trim()) delete ed.edits[i]; else ed.edits[i] = ta.value; ta.parentElement.classList.toggle('edited', ed.edits[i] !== undefined); sbBar(); });
+$('#board').addEventListener('change', e => { const se = e.target.closest('[data-v]'), ta = e.target.closest('[data-e]');
+  if (se && ed.plan) { const i = +se.dataset.v; ed.plan.escenas[i].visual = se.value; liveUpdate(i, planList()[i].t0 + Math.min(1.6, planList()[i].dur*0.5)); ed.hist.push({me:1, t:`Escena ${i + 1}: cambié la imagen a «${VIS[se.value]}».`}); renderHist(); }
+  if (ta && ed.plan) { ed.hist.push({me:1, t:`Escena ${+ta.dataset.e + 1}: «${ta.value.trim()}».`}); renderHist(); } });
+$('#sbUndo').onclick = () => { ed.edits = {}; renderBoard(); };
+$('#sbApply').onclick = () => { const ks = Object.keys(ed.edits).map(Number).sort((a, b) => a - b); if (!ks.length) return;
+  ed.hist.push({me:1, t:`Cambié el guion en ${ks.length === 1 ? 'la escena' : 'las escenas'} ${ks.map(k => k + 1).join(', ')}.`});
+  ks.forEach(k => { const p = sbList()[k]; if (p.voz) p.voz = ed.edits[k]; else p.pantalla = ed.edits[k]; });
+  ed.edits = {}; renderBoard(); ed.ver++; ed.hist.push({me:0, t:`Guardé tu guion corregido como versión ${ed.ver}. Este video fue animado a mano: los cambios se aplican al generar la versión final.`}); $('#edVer').textContent = 'Versión ' + ed.ver; renderHist(); };
+function renderHist() { $('#hist').innerHTML = ed.hist.map(m => `<div class="msg ${m.me ? 'me' : ''}"><b>${m.me ? 'Tú' : 'Lopia Studio'}</b>${m.t}</div>`).join(''); $('#hist').scrollTop = 1e6; }
+$('#sugg').addEventListener('click', e => { const c = e.target.closest('.chip'); if (c) { $('#pt').value = c.textContent; $('#pt').focus(); } });
+$('#pf').addEventListener('submit', async e => { e.preventDefault(); const t = $('#pt').value.trim(); if (!t) return;
+  ed.hist.push({me:1, t}); $('#pt').value = ''; $('#ps').disabled = true; ed.hist.push({me:0, t:'Reescribiendo el guion…'}); renderHist();
+  let done = false;
+  if (ed.plan) { try { const sampler = await getSampler();
+      if (sampler) { const out = await sampler.json(`Este es el guion actual de un video vertical sin voz para PazDentium (clínica dental en Chile), en JSON:
+${JSON.stringify(ed.plan)}
+El cliente pide este cambio: "${t}".
+Devuelve el guion completo con el cambio aplicado y las mismas reglas: duración total ${ed.total} s; "texto" máximo 10 palabras; "visual" uno de: ${visRules}; la última escena es "cta" y ninguna otra lo es; "destacar" una o dos palabras del texto.
+Agrega "resumen": una frase corta, en tuteo, con lo que cambiaste.
+Responde solo con JSON: {"titulo":"…","resumen":"…","escenas":[{"dur":3,"texto":"…","visual":"…","destacar":"…"}],"cta":{"boton":"…"}}`, {modelTier: 'default'});
+        const np = normalize(out, ed.total, ed.plan.cta.boton);
+        if (np) { ed.plan = np; ed.vid.plan = np; saveVids(); ed.thumbs = []; ed.needSnaps = true; ed.ver++; ed.hist.pop(); ed.hist.push({me:0, t:`Versión ${ed.ver}: ${out.resumen || 'apliqué tu cambio'}.`}); renderBoard(); sendPlan(true); done = true; } } } catch (err) { console.warn(err); }
+    if (!done) { ed.hist.pop(); ed.hist.push({me:0, t:'La IA no está disponible en esta vista, así que no pude reescribir el guion. Puedes corregir los textos y las imágenes directamente en el storyboard.'}); }
+  } else { ed.hist.pop(); ed.ver++; ed.hist.push({me:0, t:`Anoté tu pedido para la versión ${ed.ver}. Este video fue animado a mano, así que el cambio se aplica al generar la versión final.`}); $('#edVer').textContent = 'Versión ' + ed.ver; }
+  $('#edVer').textContent = 'Versión ' + ed.ver; $('#ps').disabled = false; renderHist(); });
+$('#approve').onclick = async () => {
+  if (LOCAL && LOCAL.render && ed.plan) { const v = ed.vid;
+    const r = await fetch('/api/render', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({id:v.id, estilo:ed.scene, plan:ed.plan})}).then(r => r.json()).catch(() => null);
+    if (!r || !r.id) { openModal(`<h2>No se pudo iniciar el render</h2><p style="margin:0">Revisa que el servidor siga abierto en tu PC.</p><div class="row"><button class="btn" data-close>Cerrar</button></div>`); return; }
+    v.job = r.id; v.status = 'Generando final'; delete v.final; saveVids();
+    openModal(`<h2>Generando el video final</h2><p style="margin:0" id="rmsg">${r.enCola > 1 ? `Hay ${r.enCola - 1} video(s) antes en la cola.` : 'Renderizando en alta calidad con la GPU de tu PC.'}</p><div class="prog"><i id="rbar"></i></div><div class="row" id="racts"><button class="btn" data-close>Seguir trabajando</button></div>`);
+    pollJob(v, j => { const bar = $('#rbar'); if (!bar) return; bar.style.width = (j.progreso || 0) + '%';
+      if (j.estado === 'renderizando') $('#rmsg').textContent = `Renderizando en alta calidad… ${j.progreso || 0}%`;
+      if (j.estado === 'listo') { $('#rmsg').textContent = '¡Listo! Tu video está en alta calidad (1080×1920, 30 cuadros por segundo).'; $('#racts').innerHTML = `<a class="btn pri" href="${j.url}" download="${v.title}.mp4">Descargar video</a><button class="btn" data-close data-go="contenidos">Ver mis contenidos</button>`; }
+      if (j.estado === 'error') { $('#rmsg').textContent = 'No se pudo generar: ' + (j.error || 'error desconocido'); } });
+    return; }
+  ed.vid.status = 'Generando final'; const n = +$('#qn').textContent + 1; $('#qn').textContent = Math.min(6, n); $('#qb').style.width = Math.min(100, n/6*100) + '%';
+  openModal(`<h2>¡Video aprobado!</h2><p style="margin:0">Estamos generando <b>${ed.title}</b> en alta calidad. Te avisaremos cuando esté listo para descargar y publicar; suele tomar entre 15 y 30 minutos.</p><div class="row"><button class="btn pri" data-close data-go="contenidos">Ver mis contenidos</button><button class="btn" data-close>Seguir editando</button></div>`); };
+
+// ---------- assets
+let atab = 'Todos';
+function renderAssets() {
+  const kinds = ['Todos', 'Personajes', 'Fotos', 'Marca', 'Generados con IA'];
+  $('#atabs').innerHTML = kinds.map(k => `<button class="${k === atab ? 'on' : ''}" data-k="${k}">${k}</button>`).join('');
+  const list = assets.filter(a => atab === 'Todos' || a.kind === atab);
+  $('#agrid').innerHTML = list.length ? list.map(assetCard).join('') : `<div class="card" style="grid-column:1/-1"><h3>Aún no hay ${atab.toLowerCase()}</h3><p class="note" style="margin:6px 0 0">Sube fotos de tu negocio, tu equipo o tus productos y las usaremos en tus próximos videos.</p></div>`;
+}
+$('#atabs').addEventListener('click', e => { const b = e.target.closest('[data-k]'); if (b) { atab = b.dataset.k; renderAssets(); } });
+$('#up').addEventListener('change', async e => { const files = [...e.target.files]; e.target.value = ''; atab = 'Fotos';
+  for (const f of files) { if (LOCAL) { const a = await fetch('/api/assets', {method:'POST', headers:{'content-type':f.type || 'image/jpeg', 'x-nombre':encodeURIComponent(f.name)}, body:f}).then(r => r.json()).catch(() => null); if (a && a.id) { assets.unshift(a); continue; } }
+    assets.unshift({id:'u' + Math.random(), name:f.name.replace(/\.[^.]+$/, ''), kind:'Fotos', src:URL.createObjectURL(f), cover:1, used:0}); }
+  renderAssets(); });
+$('#aiBtn').onclick = () => openModal(`<h2>Generar un asset con IA</h2><label class="f">Describe lo que necesitas<textarea id="aiT">Un diente sonriente con brillo, estilo fieltro, para usar como mascota</textarea></label>
+  <label class="f">Estilo<select id="aiS">${STYLES.map(s => `<option>${s.name}</option>`).join('')}</select></label><p class="note" style="margin:0">En este prototipo la generación todavía no está conectada: se guarda el pedido para producirlo.</p>
+  <div class="row"><button class="btn pri" id="aiGo">Pedir asset</button><button class="btn" data-close>Cancelar</button></div>`);
+document.addEventListener('click', e => {
+  if (e.target.id === 'aiGo') { assets.unshift({id:'a' + Date.now(), name:$('#aiT').value.slice(0, 40), kind:'Generados con IA', src:'thumbs/vero_fieltro.jpg', cover:1, used:0, ai:1}); closeModal(); atab = 'Generados con IA'; renderAssets(); return; }
+  if (e.target.closest('[data-close]')) closeModal();
+  if (e.target.id === 'modal') closeModal(); });
+function openModal(h) { $('#mBody').innerHTML = h; $('#modal').classList.add('on'); }
+function closeModal() { $('#modal').classList.remove('on'); }
+addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ---------- modo local (servidor en tu PC): guarda videos y assets, y renderiza los finales
+let LOCAL = null, saveT = null;
+const estadoP = fetch('/api/estado').then(r => r.ok ? r.json() : null).catch(() => null);
+const saveVids = () => { if (!LOCAL) return; clearTimeout(saveT); saveT = setTimeout(() => fetch('/api/videos', {method:'PUT', headers:{'content-type':'application/json'}, body:JSON.stringify(vids.filter(v => v.plan))}), 600); };
+estadoP.then(async st => { if (!st || !st.ok) return; LOCAL = st;
+  const [vs, as] = await Promise.all([fetch('/api/videos').then(r => r.json()).catch(() => []), fetch('/api/assets').then(r => r.json()).catch(() => [])]);
+  const ids = new Set(vs.map(v => v.id)); vids = vs.concat(vids.filter(v => !ids.has(v.id))); assets = as.concat(assets);
+  vids.filter(v => v.status === 'Generando final' && v.job).forEach(v => pollJob(v));
+  show(location.hash.slice(1) || 'inicio'); });
+function pollJob(v, onTick) { const tick = async () => { try { const j = await fetch('/api/render/' + v.job).then(r => r.json());
+    if (j.estado === 'listo') { v.status = 'Listo'; v.final = j.url; saveVids(); if (onTick) onTick(j); if ($('#v-contenidos').classList.contains('on')) renderVids(); return; }
+    if (j.estado === 'error' || j.error) { v.status = 'Borrador'; v.errorRender = j.error || 'Error'; saveVids(); if (onTick) onTick(j); return; }
+    if (onTick) onTick(j); } catch (e) {} setTimeout(tick, 2000); }; tick(); }
+show(location.hash.slice(1) || 'inicio');
+}
+</script>
+</body>
+</html>

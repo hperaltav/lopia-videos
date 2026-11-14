@@ -18,3 +18,6 @@ motor/cola/
 **/motor/ultimo_render.txt
 **/motor/vigilante_estado.txt
 **/motor/ffmpeg_path.txt
+# Studio local: datos del usuario y binarios descargados
+studio/datos/
+studio/herramientas/

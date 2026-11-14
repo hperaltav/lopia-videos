@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face{font-family:'Abril';src:url(/motor/fonts/abril-fatface-latin-400-normal.woff2);}
+  @font-face{font-family:'Anton';src:url(/motor/fonts/anton-latin-400-normal.woff2);}
+  @font-face{font-family:'Elite';src:url(/motor/fonts/special-elite-latin-400-normal.woff2);}
+  @font-face{font-family:'Playfair';font-weight:900;src:url(/motor/fonts/playfair-display-latin-900-normal.woff2);}
+  @font-face{font-family:'Playfair';font-style:italic;font-weight:400;src:url(/motor/fonts/playfair-display-latin-400-italic.woff2);}
+  @font-face{font-family:'Bebas';src:url(/motor/fonts/bebas-neue-latin-400-normal.woff2);}
+  @font-face{font-family:'Caveat';font-weight:700;src:url(/motor/fonts/caveat-latin-700-normal.woff2);}
+  html,body{margin:0;background:#000;overflow:hidden;}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;}
+  canvas#c{position:absolute;inset:0;width:1080px;height:1920px;}
+  #grain{position:absolute;inset:0;pointer-events:none;mix-blend-mode:multiply;opacity:.55;}
+  #vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(40,20,0,.38) 100%);}
+</style>
+<script type="importmap">{"imports":{"three":"/motor/node_modules/three/build/three.module.js"}}</script>
+</head><body>
+<div id="stage"><canvas id="c" width="1080" height="1920"></canvas><div id="grain"></div><div id="vig"></div></div>
+<script type="module">
+import * as THREE from 'three';
+// ============================================================ utilidades
+const FPS = 30, DURATION = 13.0, STOP = 12;              // movimiento tipo stop-motion a 12 cuadros/s
+const SC = Number(new URLSearchParams(location.search).get('scale') || 1);
+const W = Math.round(1080*SC), H = Math.round(1920*SC);
+if (SC !== 1) { const st = document.getElementById('stage'); st.style.transform = `scale(${SC})`; st.style.transformOrigin = '0 0'; }
+const clamp01 = x => Math.max(0, Math.min(1, x)), seg = (t, a, b) => clamp01((t - a)/(b - a)), lerp = (a, b, k) => a + (b - a)*k;
+const eio = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3)/2, eout = x => 1 - Math.pow(1 - x, 3);
+const eback = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3*Math.pow(x - 1, 3) + c1*Math.pow(x - 1, 2); };
+const elastic = x => x === 0 || x === 1 ? x : Math.pow(2, -9*x)*Math.sin((x*10 - 0.75)*(2*Math.PI)/3.2) + 1;
+let SEED = 7; const rnd = () => { SEED = (SEED*16807) % 2147483647; return (SEED - 1)/2147483646; };
+const hash = (a, b = 0) => { const s = Math.sin(a*127.1 + b*311.7)*43758.5453; return s - Math.floor(s); };
+
+// ============================================================ escena
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true});
+renderer.setSize(W, H, false); renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, 1080/1920, 0.1, 50); camera.position.set(0, 0, 10); camera.lookAt(0, 0, 0);
+const VH = 2*10*Math.tan(15*Math.PI/180), VW = VH*1080/1920;     // 5.36 × 3.01 unidades visibles
+scene.add(new THREE.HemisphereLight('#fff6e8', '#8a6a4a', 1.1));
+const sun = new THREE.DirectionalLight('#fff3dc', 2.2); sun.position.set(-3, 4, 9); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, {left: -3, right: 3, top: 4, bottom: -4, near: 1, far: 25}); sun.shadow.radius = 6; sun.shadow.bias = -0.0008;
+scene.add(sun);
+
+// ============================================================ texturas dibujadas (papel, diario, semitono, letras)
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+function tornPath(ctx, w, h, m, rough, seed) {        // contorno rasgado
+  SEED = seed; ctx.beginPath(); const N = 70, pts = [];
+  const edge = (x0, y0, x1, y1) => { for (let i = 0; i < N; i++) { const k = i/N, nx = -(y1 - y0), ny = x1 - x0, L = Math.hypot(nx, ny), j = (rnd() - 0.5)*rough;
+    pts.push([lerp(x0, x1, k) + nx/L*j, lerp(y0, y1, k) + ny/L*j]); } };
+  edge(m, m, w - m, m); edge(w - m, m, w - m, h - m); edge(w - m, h - m, m, h - m); edge(m, h - m, m, m);
+  pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath();
+}
+function paperFill(ctx, w, h, base, fiber = 0.05) {
+  ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+  const img = ctx.getImageData(0, 0, w, h), d = img.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (hash(i*0.37) - 0.5)*255*fiber; d[i] += n; d[i+1] += n; d[i+2] += n; }
+  ctx.putImageData(img, 0, 0);
+}
+function halftone(ctx, x, y, w, h, color, dens, step = 14, ang = 0.4) {
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip(); ctx.fillStyle = color;
+  const ca = Math.cos(ang), sa = Math.sin(ang), R = Math.hypot(w, h);
+  for (let u = -R; u < R; u += step) for (let v = -R; v < R; v += step) {
+    const px = x + w/2 + u*ca - v*sa, py = y + h/2 + u*sa + v*ca; if (px < x - step || px > x + w + step || py < y - step || py > y + h + step) continue;
+    const r = step*0.55*Math.sqrt(clamp01(dens((px - x)/w, (py - y)/h))); if (r < 0.4) continue;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI*2); ctx.fill(); }
+  ctx.restore();
+}
+function cutout(w, h, draw, {seed = 1, rough = 10, rim = '#fbf8f0', margin = 16, rimW = 10} = {}) {   // recorte con borde blanco rasgado
+  const [c, ctx] = mk(w, h);
+  tornPath(ctx, w, h, margin, rough, seed); ctx.fillStyle = rim; ctx.fill();
+  ctx.save(); tornPath(ctx, w, h, margin + rimW, rough*0.8, seed + 3); ctx.clip(); draw(ctx, w, h); ctx.restore();
+  return c;
+}
+const WORDS = 'sonrisa dientes salud esmalte encía cepillo higiene clínica control ortodoncia brackets arco ligas tratamiento paciente consulta dental limpieza evaluación hoy semana resultados cuidado natural blanca'.split(' ');
+function newspaper(w, h) {
+  return cutout(w, h, (ctx) => {
+    paperFill(ctx, w, h, '#ece6d6', 0.06);
+    ctx.fillStyle = '#1d1b19'; ctx.font = `900 ${w*0.105}px Playfair`; ctx.textAlign = 'center'; ctx.fillText('El Diario Dental', w/2, h*0.11);
+    ctx.fillRect(w*0.06, h*0.13, w*0.88, 4); ctx.fillRect(w*0.06, h*0.137, w*0.88, 1.5);
+    ctx.font = `italic 400 ${w*0.028}px Playfair`; ctx.fillText('Edición especial · Sonrisas · 2026', w/2, h*0.163);
+    SEED = 99; const cols = 3, cw = w*0.88/cols;
+    for (let c2 = 0; c2 < cols; c2++) for (let y = h*0.2; y < h*0.95; y += h*0.022) {
+      if (c2 === 1 && y > h*0.42 && y < h*0.66) continue;
+      ctx.font = `italic 400 ${w*0.022}px Playfair`; ctx.fillStyle = '#4a4540'; ctx.textAlign = 'left';
+      let line = ''; while (ctx.measureText(line).width < cw*0.82) line += WORDS[Math.floor(rnd()*WORDS.length)] + ' ';
+      ctx.fillText(line, w*0.06 + c2*cw + 4, y); }
+    halftone(ctx, w*0.06 + cw + 6, h*0.42, cw - 12, h*0.24, '#2a2622', (u, v) => 0.25 + 0.5*Math.sin(u*3 + v*5)**2 + 0.3*v, 9);
+  }, {seed: 11, rough: 14, rim: '#ece6d6', rimW: 0});
+}
+const PAPERS = [['#f4d03f', '#1d1b19'], ['#e8476b', '#fff6ee'], ['#1d1b19', '#f6efe2'], ['#ece6d6', '#1d1b19'], ['#3fb7c8', '#1d1b19'], ['#ffffff', '#c0392b'], ['#f39c4a', '#1d1b19']];
+const FONTS = ['Abril', 'Anton', '900 Playfair', 'Bebas', 'Elite'];
+function letterTex(ch, i) {
+  const [bg, fg] = PAPERS[(i*3 + 1) % PAPERS.length], font = FONTS[(i*2 + ch.charCodeAt(0)) % FONTS.length];
+  return cutout(256, 300, (ctx, w, h) => { paperFill(ctx, w, h, bg, 0.07);
+    ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `${font.includes('900') ? '' : ''}${font.includes('Playfair') ? '900 ' : ''}${Math.round(h*0.68)}px ${font.replace('900 ', '')}`;
+    ctx.fillText(ch, w/2, h*0.54); }, {seed: 20 + i*7, rough: 7, rim: bg, rimW: 0, margin: 10});
+}
+function toothCut() {
+  return cutout(700, 760, (ctx, w, h) => {
+    paperFill(ctx, w, h, '#e8476b', 0.04); halftone(ctx, 0, 0, w, h, '#c22c55', (u, v) => 0.3 + 0.5*v, 16, 0.6);
+    // diente blanco recortado con su propio borde
+    const tooth = (s) => { ctx.beginPath(); const cx = w/2, cy = h*0.5;
+      ctx.moveTo(cx - 190*s, cy - 170*s); ctx.bezierCurveTo(cx - 200*s, cy - 330*s, cx - 40*s, cy - 300*s, cx, cy - 250*s);
+      ctx.bezierCurveTo(cx + 40*s, cy - 300*s, cx + 200*s, cy - 330*s, cx + 190*s, cy - 170*s);
+      ctx.bezierCurveTo(cx + 185*s, cy - 30*s, cx + 150*s, cy + 40*s, cx + 120*s, cy + 160*s);
+      ctx.bezierCurveTo(cx + 100*s, cy + 270*s, cx + 40*s, cy + 290*s, cx + 30*s, cy + 160*s);
+      ctx.quadraticCurveTo(cx, cy + 100*s, cx - 30*s, cy + 160*s);
+      ctx.bezierCurveTo(cx - 40*s, cy + 290*s, cx - 100*s, cy + 270*s, cx - 120*s, cy + 160*s);
+      ctx.bezierCurveTo(cx - 150*s, cy + 40*s, cx - 185*s, cy - 30*s, cx - 190*s, cy - 170*s); ctx.closePath(); };
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 18; ctx.shadowOffsetY = 8; tooth(1.06); ctx.fillStyle = '#fffdf6'; ctx.fill(); ctx.restore();
+    tooth(1); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.save(); tooth(1); ctx.clip();
+    halftone(ctx, 0, 0, w, h, '#9fb4c4', (u, v) => clamp01((u - 0.55)*2.2) + clamp01((v - 0.62)*2), 12, 0.3); ctx.restore();
+    // bracket + arco
+    ctx.fillStyle = '#8f9aa6'; ctx.fillRect(w/2 - 70, h*0.42 - 55, 140, 110); ctx.fillStyle = '#c9d1da'; ctx.fillRect(w/2 - 58, h*0.42 - 45, 116, 34); ctx.fillRect(w/2 - 58, h*0.42 + 11, 116, 34);
+    ctx.strokeStyle = '#5d6772'; ctx.lineWidth = 12; ctx.beginPath(); ctx.moveTo(0, h*0.42); ctx.quadraticCurveTo(w/2, h*0.40, w, h*0.42); ctx.stroke();
+    ctx.strokeStyle = '#e8476b'; ctx.lineWidth = 10; ctx.beginPath(); ctx.ellipse(w/2, h*0.42, 80, 66, 0, 0, Math.PI*2); ctx.stroke();
+    // ojitos y sonrisa
+    ctx.fillStyle = '#1d1b19'; [-60, 60].forEach(dx => { ctx.beginPath(); ctx.ellipse(w/2 + dx, h*0.27, 16, 22, 0, 0, Math.PI*2); ctx.fill(); });
+    ctx.lineWidth = 9; ctx.strokeStyle = '#1d1b19'; ctx.beginPath(); ctx.arc(w/2, h*0.53, 50, 0.15*Math.PI, 0.85*Math.PI); ctx.stroke();
+  }, {seed: 5, rough: 12});
+}
+function bubble(text) {
+  return cutout(820, 360, (ctx, w, h) => { paperFill(ctx, w, h, '#fbf8f0', 0.05);
+    ctx.fillStyle = '#1d1b19'; ctx.font = `${h*0.2}px Elite`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    text.split('\n').forEach((l, i, a) => ctx.fillText(l, w/2, h/2 + (i - (a.length - 1)/2)*h*0.26)); }, {seed: 41, rough: 9});
+}
+function card(label, color, ink, kind, seed) {
+  return cutout(600, 640, (ctx, w, h) => { paperFill(ctx, w, h, color, 0.06); halftone(ctx, 0, 0, w, h, ink + '55', (u, v) => 0.15 + 0.45*u*v, 14, 0.9);
+    ctx.fillStyle = '#fbf8f0'; ctx.fillRect(w*0.12, h*0.1, w*0.76, h*0.56);
+    const cx = w/2, cy = h*0.38;
+    if (kind === 'molar') { ctx.fillStyle = '#8f9aa6'; ctx.fillRect(cx - 150, cy - 60, 300, 120); ctx.fillStyle = '#c9d1da'; ctx.beginPath(); ctx.roundRect(cx - 120, cy - 34, 240, 68, 34); ctx.fill();
+      ctx.fillStyle = '#2b2d42'; ctx.beginPath(); ctx.arc(cx - 120, cy, 22, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = '#8f9aa6'; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx + 80, cy - 30); ctx.lineTo(cx + 130, cy - 100); ctx.stroke(); }
+    else { const bw = kind === 'central' ? 190 : 140; ctx.fillStyle = '#8f9aa6'; ctx.fillRect(cx - bw/2 - 20, cy - 95, bw + 40, 190);
+      ctx.fillStyle = '#c9d1da'; ctx.fillRect(cx - bw/2, cy - 80, bw, 60); ctx.fillRect(cx - bw/2, cy + 20, bw, 60); ctx.fillStyle = '#2fb3a6'; ctx.fillRect(cx - bw/2, cy - 12, bw, 24);
+      if (kind === 'canine') { ctx.strokeStyle = '#8f9aa6'; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx + bw/2, cy - 80); ctx.lineTo(cx + bw/2 + 50, cy - 150); ctx.stroke(); } }
+    ctx.fillStyle = ink; ctx.font = `${h*0.13}px Anton`; ctx.textAlign = 'center'; ctx.fillText(label, w/2, h*0.84); }, {seed, rough: 11});
+}
+function tapeTex(seed) { const [c, ctx] = mk(256, 96); SEED = seed; ctx.beginPath(); ctx.moveTo(0, 0);
+  for (let x = 0; x <= 256; x += 16) ctx.lineTo(x, rnd()*8); for (let y = 0; y <= 96; y += 12) ctx.lineTo(256 - rnd()*10, y);
+  for (let x = 256; x >= 0; x -= 16) ctx.lineTo(x, 96 - rnd()*8); for (let y = 96; y >= 0; y -= 12) ctx.lineTo(rnd()*10, y); ctx.closePath();
+  ctx.fillStyle = 'rgba(236,224,190,0.78)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3; ctx.stroke(); return c; }
+function banner(logo) {
+  return cutout(980, 560, (ctx, w, h) => { paperFill(ctx, w, h, '#f5efe3', 0.05); halftone(ctx, 0, h*0.72, w, h*0.28, '#d8a596', () => 0.6, 12, 0.5);
+    const lw = w*0.78, lh = lw*logo.height/logo.width; ctx.drawImage(logo, (w - lw)/2, h*0.36 - lh/2, lw, lh); }, {seed: 77, rough: 13});
+}
+
+// ============================================================ papel 3D que se arruga y estira
+const FOLDS = Array.from({length: 14}, (_, k) => { const a = hash(k, 1)*Math.PI*2; return {dx: Math.cos(a), dy: Math.sin(a), o: hash(k, 2)*3, p: 0.25 + hash(k, 3)*0.6, amp: 0.4 + hash(k, 4)}; });
+class Paper {
+  constructor(canvas, w, layer = 0, seg = 36) {
+    const tex = new THREE.CanvasTexture(canvas); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+    const h = w*canvas.height/canvas.width; this.w = w; this.h = h;
+    this.geo = new THREE.PlaneGeometry(w, h, seg, Math.round(seg*h/w)); this.base = this.geo.attributes.position.array.slice();
+    this.fold = new Float32Array(this.base.length/3);
+    for (let i = 0; i < this.fold.length; i++) { const x = this.base[i*3]/w, y = this.base[i*3+1]/h; let f = 0;
+      for (const F of FOLDS) { const q = (x*F.dx + y*F.dy)*3 + F.o; f += F.amp*Math.abs((q % F.p + F.p) % F.p - F.p/2); } this.fold[i] = f; }
+    this.mat = new THREE.MeshStandardMaterial({map: tex, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.92, metalness: 0, flatShading: true});
+    this.mesh = new THREE.Mesh(this.geo, this.mat); this.mesh.castShadow = true; this.mesh.receiveShadow = true;
+    this.mesh.customDepthMaterial = new THREE.MeshDepthMaterial({depthPacking: THREE.RGBADepthPacking, map: tex, alphaTest: 0.5});
+    this.layer = layer; this.root = new THREE.Group(); this.root.add(this.mesh); scene.add(this.root);
+    this.crumple = -1; this.set(0);
+  }
+  set(c, wrinkle = 0.06) {           // c: 0 liso → 1 bola de papel
+    c = Math.max(c, 0); if (Math.abs(c - this.crumple) < 1e-4) return; this.crumple = c;
+    const p = this.geo.attributes.position.array, b = this.base, k = c*c, s = 1 - 0.78*k;
+    for (let i = 0; i < this.fold.length; i++) { const x = b[i*3], y = b[i*3+1], r2 = (x*x)/(this.w*this.w/4) + (y*y)/(this.h*this.h/4);
+      const n = hash(i*0.13) - 0.5, m = hash(i*0.71) - 0.5;
+      p[i*3] = x*s + k*n*0.12*this.w; p[i*3+1] = y*s + k*m*0.12*this.h;
+      p[i*3+2] = (wrinkle + 0.6*c)*this.fold[i]*0.07*this.w + k*0.32*this.w*(1 - Math.min(1, r2))*0.9; }
+    this.geo.attributes.position.needsUpdate = true; this.geo.computeVertexNormals();
+  }
+}
+// "hervor" de stop-motion: pequeña vibración distinta en cada cuadro
+const boil = (t, id, a = 1) => { const f = Math.floor(t*STOP); return [(hash(f, id) - 0.5)*0.012*a, (hash(f, id + 9) - 0.5)*0.012*a, (hash(f, id + 17) - 0.5)*0.03*a]; };
+function place(P, t, x, y, rot, sx = 1, sy = 1, id = 0, z = 0) {
+  const [bx, by, br] = boil(t, id); P.root.position.set(x + bx, y + by, 0.02 + P.layer*0.012 + z); P.root.rotation.set(0, 0, rot + br); P.root.scale.set(sx, sy, 1);
+}
+
+// ============================================================ fondo de cartón
+{ const [c, ctx] = mk(1024, 1820); paperFill(ctx, 1024, 1820, '#c7a77c', 0.09);
+  for (let i = 0; i < 900; i++) { ctx.strokeStyle = `rgba(${90 + hash(i)*60},${60 + hash(i, 2)*40},30,${0.05 + hash(i, 3)*0.08})`; ctx.lineWidth = 1 + hash(i, 4)*2;
+    const x = hash(i, 5)*1024, y = hash(i, 6)*1820; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (hash(i, 7) - 0.5)*60, y + (hash(i, 8) - 0.5)*20); ctx.stroke(); }
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const bg = new THREE.Mesh(new THREE.PlaneGeometry(VW*1.15, VH*1.15), new THREE.MeshStandardMaterial({map: tex, roughness: 1})); bg.receiveShadow = true; scene.add(bg); }
+// grano de papel en pantalla (cambia cada cuadro de stop-motion)
+const grains = []; for (let g = 0; g < 4; g++) { const [c, ctx] = mk(540, 960); const img = ctx.createImageData(540, 960);
+  for (let i = 0; i < img.data.length; i += 4) { const v = 200 + hash(i*0.01, g)*55; img.data[i] = v; img.data[i+1] = v*0.97; img.data[i+2] = v*0.9; img.data[i+3] = 255; }
+  ctx.putImageData(img, 0, 0); grains.push(`url(${c.toDataURL('image/jpeg', 0.7)})`); }
+const grainEl = document.getElementById('grain'); grainEl.style.backgroundSize = '1080px 1920px';
+
+// ============================================================ piezas
+let news, letters = [], toothP, bub, cards = [], tapes = [], ban, cta = [], arrowC, arrowTex, arrowP;
+const HEAD = '¿BRACKETS?', CTA = 'AGENDA TU EVALUACIÓN';
+async function build() {
+  await Promise.all(['40px Abril', '40px Anton', '40px Elite', '900 40px Playfair', 'italic 400 40px Playfair', '40px Bebas', '700 40px Caveat'].map(f => document.fonts.load(f)));
+  await document.fonts.ready;
+  const logo = new Image(); logo.src = '/marca/logo2.svg'; await logo.decode();
+  news = new Paper(newspaper(900, 1200), 2.7, 0, 48);
+  [...HEAD].forEach((ch, i) => letters.push(new Paper(letterTex(ch, i), 0.36, 3 + (i % 2), 10)));
+  toothP = new Paper(toothCut(), 2.3, 1, 40);
+  bub = new Paper(bubble('NO TODOS\nSON IGUALES'), 2.2, 4, 28);
+  cards = [card('INCISIVOS', '#f4d03f', '#1d1b19', 'central', 61), card('CANINOS', '#3fb7c8', '#1d1b19', 'canine', 62), card('MOLARES', '#f39c4a', '#1d1b19', 'molar', 63)]
+    .map((c, i) => new Paper(c, 1.5, 1 + i, 30));
+  tapes = [0, 1, 2, 3, 4, 5].map(i => { const P = new Paper(tapeTex(80 + i), 0.55, 8, 6); P.mat.alphaTest = 0.05; P.mat.transparent = true; P.mesh.castShadow = false; return P; });
+  ban = new Paper(banner(logo), 2.6, 2, 36);
+  [...CTA].forEach((ch, i) => { if (ch !== ' ') cta.push({P: new Paper(letterTex(ch, i + 5), 0.31, 4 + (i % 2), 8), i}); });
+  [arrowC] = mk(512, 300); arrowTex = new THREE.CanvasTexture(arrowC); arrowTex.colorSpace = THREE.SRGBColorSpace;
+  arrowP = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 0.76), new THREE.MeshBasicMaterial({map: arrowTex, transparent: true})); scene.add(arrowP);
+}
+function drawArrow(k) {     // flecha a plumón que se dibuja
+  const ctx = arrowC.getContext('2d'); ctx.clearRect(0, 0, 512, 300); if (k <= 0) return;
+  ctx.strokeStyle = '#d6332e'; ctx.lineWidth = 16; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const pts = []; for (let i = 0; i <= 40; i++) { const u = i/40; pts.push([60 + u*360, 230 - Math.sin(u*Math.PI)*150 + u*20]); }
+  const n = Math.floor(k*40); ctx.beginPath(); pts.slice(0, n + 1).forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke();
+  if (k > 0.95) { ctx.beginPath(); ctx.moveTo(420, 250); ctx.lineTo(450, 175); ctx.moveTo(420, 250); ctx.lineTo(345, 230); ctx.stroke(); }
+}
+
+// ============================================================ línea de tiempo
+const hide = P => { P.root.visible = false; };
+// "golpe" al pegar: llega grande, se aplasta y rebota (estirar y encoger)
+const slap = (t, t0, d = 0.35) => { const k = seg(t, t0, t0 + d); if (k <= 0) return null;
+  const s = k < 0.45 ? lerp(1.9, 0.86, eio(k/0.45)) : lerp(0.86, 1, elastic((k - 0.45)/0.55)); return {s, sq: k < 0.45 ? 1 : 1 + 0.12*Math.sin((k - 0.45)*18)*(1 - k)}; };
+function frame(f) {
+  const t = f/FPS, tq = Math.floor(t*STOP)/STOP;          // tiempo cuantizado: animación a 12 cuadros/s
+  grainEl.style.backgroundImage = grains[Math.floor(t*STOP) % grains.length];
+
+  // 1) diario: llega hecho bola, se abre; luego se arruga y sale volando
+  { const inK = eout(seg(tq, 0, 0.5)), open = eio(seg(tq, 0.45, 1.25)), close = eio(seg(tq, 2.95, 3.35)), away = seg(tq, 3.35, 3.85);
+    news.root.visible = tq < 3.85; news.set(Math.max(1 - open, close), 0.07);
+    place(news, tq, lerp(1.2, 0, inK) + away*away*3.5, lerp(3.6, 0.1, inK) + away*1.5, lerp(-1.2, -0.06, inK) + away*2.5, 1, 1, 1); }
+  letters.forEach((P, i) => { const sl = slap(tq, 1.3 + i*0.11); P.root.visible = !!sl && tq < 3.05;
+    if (!sl) return; const x = (i - (HEAD.length - 1)/2)*0.29, y = 0.55 + (hash(i, 5) - 0.5)*0.16;
+    place(P, tq, x, y, (hash(i, 6) - 0.5)*0.35, sl.s, sl.s*sl.sq, 30 + i); P.set(seg(tq, 2.9, 3.05)); });
+
+  // 2) recorte del diente (se estira al pegarse) + cintas + globo + flecha
+  { const sl = slap(tq, 3.55, 0.45), out = seg(tq, 6.75, 7.15); toothP.root.visible = !!sl && tq < 7.15;
+    if (sl) { const st = 1 + 0.18*Math.sin(tq*4)*seg(tq, 4.0, 4.4)*(1 - seg(tq, 5.4, 5.8));       // estirón elástico
+      place(toothP, tq, -0.12 - out*out*4, 0.62 + out*0.5, -0.08 - out*1.5, sl.s/st*0.98, sl.s*sl.sq*st, 40); toothP.set(out*1.2, 0.05); } }
+  [[-1.05, 1.82, 0.7], [0.8, 1.82, -0.6]].forEach(([x, y, r], i) => { const P = tapes[i], on = tq > 4.05 + i*0.15 && tq < 6.75;
+    P.root.visible = on; if (on) place(P, tq, x, y, r, 1, 1, 50 + i, 0.02); });
+  { const sl = slap(tq, 4.6, 0.4), out = seg(tq, 6.6, 6.95); bub.root.visible = !!sl && tq < 6.95;
+    if (sl) { place(bub, tq, 0.15 + out*3, -1.62, 0.06, sl.s, sl.s*sl.sq, 60); bub.set(out); } }
+  { const k = seg(tq, 5.2, 5.75); arrowP.visible = k > 0 && tq < 6.7; drawArrow(k); arrowTex.needsUpdate = true;
+    const [bx, by] = boil(tq, 70); arrowP.position.set(0.95 + bx, -0.72 + by, 0.2); arrowP.rotation.z = 1.75; }
+
+  // 3) tres tarjetas: cada diente lleva su bracket
+  cards.forEach((P, i) => { const sl = slap(tq, 7.0 + i*0.6, 0.38), out = seg(tq, 10.0 + i*0.08, 10.4 + i*0.08);
+    P.root.visible = !!sl && out < 1; if (!sl) return;
+    const pos = [[-0.55, 1.2, -0.12], [0.55, 0.05, 0.1], [-0.45, -1.15, -0.06]][i];
+    place(P, tq, pos[0] + out*out*(i % 2 ? 4 : -4), pos[1], pos[2] + out*2*(i % 2 ? 1 : -1), sl.s, sl.s*sl.sq, 80 + i); P.set(out*0.9, 0.05); });
+  [[-1.1, 1.85, 0.5], [1.05, 0.62, -0.45], [-0.95, -0.6, 0.35]].forEach(([x, y, r], i) => { const P = tapes[2 + i], on = tq > 7.25 + i*0.6 && tq < 10.0;
+    P.root.visible = on; if (on) place(P, tq, x, y, r, 0.8, 0.8, 90 + i, 0.03); });
+  hide(tapes[5]);
+
+  // 4) cierre: cartel con logo + letras recortadas
+  { const sl = slap(tq, 10.35, 0.45); ban.root.visible = !!sl; if (sl) { place(ban, tq, 0, 0.95, -0.04, sl.s, sl.s*sl.sq, 100); ban.set(0, 0.05); } }
+  cta.forEach(({P, i}) => { const sl = slap(tq, 10.85 + i*0.05, 0.3); P.root.visible = !!sl; if (!sl) return;
+    const word = i < 6 ? 0 : i < 9 ? 1 : 2, starts = [0, 7, 10], idx = i - starts[word], len = [6, 2, 10][word];
+    const x = (idx - (len - 1)/2)*0.285, y = [-0.5, -0.95, -1.42][word] + (hash(i, 5) - 0.5)*0.06;
+    place(P, tq, x, y, (hash(i, 6) - 0.5)*0.3, sl.s, sl.s*sl.sq, 110 + i); });
+
+  renderer.render(scene, camera);
+}
+window.TOTAL_FRAMES = Math.round(DURATION*FPS);
+window.renderFrame = f => { frame(f); return true; };
+window.GPU = (() => { try { const g = document.createElement('canvas').getContext('webgl2'); const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return 'desconocido'; } })();
+build().then(() => { window.READY = true; });
+</script></body></html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+  @font-face{font-family:'Bebas';src:url(/motor/fonts/bebas-neue-latin-400-normal.woff2);}
+  @font-face{font-family:'Caveat';font-weight:700;src:url(/motor/fonts/caveat-latin-700-normal.woff2);}
+  html,body{margin:0;background:#000;overflow:hidden;}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;}
+  canvas#c{position:absolute;inset:0;width:1080px;height:1920px;}
+  #vig{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 50%,rgba(30,15,5,.45) 100%);}
+</style>
+<script type="importmap">{"imports":{"three":"/motor/node_modules/three/build/three.module.js"}}</script>
+</head><body>
+<div id="stage"><canvas id="c" width="1080" height="1920"></canvas><div id="vig"></div></div>
+<script type="module">
+import * as THREE from 'three';
+const FPS = 30, DURATION = 15.0, STOP = 12;
+const SC = Number(new URLSearchParams(location.search).get('scale') || 1);
+const W = Math.round(1080*SC), H = Math.round(1920*SC);
+if (SC !== 1) { const st = document.getElementById('stage'); st.style.transform = `scale(${SC})`; st.style.transformOrigin = '0 0'; }
+const clamp01 = x => Math.max(0, Math.min(1, x)), seg = (t, a, b) => clamp01((t - a)/(b - a)), lerp = (a, b, k) => a + (b - a)*k;
+const eio = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3)/2, eout = x => 1 - Math.pow(1 - x, 3);
+const eback = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3*Math.pow(x - 1, 3) + c1*Math.pow(x - 1, 2); };
+const hash = (a, b = 0) => { const s = Math.sin(a*127.1 + b*311.7)*43758.5453; return s - Math.floor(s); };
+
+// ============================================================ escena tipo "foto de juguetes"
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true});
+renderer.setSize(W, H, false); renderer.setPixelRatio(1); renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#e9dcc8');
+const camera = new THREE.PerspectiveCamera(32, 1080/1920, 0.1, 60);
+scene.add(new THREE.HemisphereLight('#fff4e6', '#8a6d52', 0.75));
+const key = new THREE.DirectionalLight('#fff1dc', 3.0); key.position.set(-4, 6, 8); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, {left: -5, right: 5, top: 7, bottom: -7, near: 1, far: 30}); key.shadow.radius = 8; key.shadow.bias = -0.0006; scene.add(key);
+const rim = new THREE.DirectionalLight('#ffd9e6', 1.0); rim.position.set(5, 2, -3); scene.add(rim);
+
+// ============================================================ fieltro: textura de fibras + brillo de tela + pelusa en capas
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; };
+function fiberCanvas(size = 512, seed = 1) {          // fibras entrecruzadas (en gris, se tiñen con el color del material)
+  const [c, ctx] = mk(size, size); ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 9000; i++) { const x = hash(i, seed)*size, y = hash(i, seed + 1)*size, a = hash(i, seed + 2)*Math.PI, l = 4 + hash(i, seed + 3)*14, v = 100 + hash(i, seed + 4)*80;
+    ctx.strokeStyle = `rgba(${v},${v},${v},0.35)`; ctx.lineWidth = 0.8 + hash(i, 9)*0.8; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a)*l, y + Math.sin(a)*l); ctx.stroke(); }
+  return c;
+}
+function toNormal(src) {              // mapa normal a partir de las fibras (relieve)
+  const w = src.width, h = src.height, s = src.getContext('2d').getImageData(0, 0, w, h).data, [c, ctx] = mk(w, h), o = ctx.createImageData(w, h);
+  const g = (x, y) => s[(((y + h) % h)*w + ((x + w) % w))*4]/255;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const dx = (g(x + 1, y) - g(x - 1, y))*2.2, dy = (g(x, y + 1) - g(x, y - 1))*2.2, i = (y*w + x)*4;
+    const L = Math.hypot(dx, dy, 1); o.data[i] = (-dx/L*0.5 + 0.5)*255; o.data[i+1] = (dy/L*0.5 + 0.5)*255; o.data[i+2] = (1/L*0.5 + 0.5)*255; o.data[i+3] = 255; }
+  ctx.putImageData(o, 0, 0); return c;
+}
+const FIB = fiberCanvas(512, 3), FIBN = toNormal(FIB);
+const texRep = (c, r = 3, srgb = false) => { const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(r, r); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const fibNormal = texRep(FIBN, 3);
+const fuzzTex = (() => { const S = 512, [c, ctx] = mk(S, S); const img = ctx.createImageData(S, S);   // hebras densas: cada pixel es la altura de una fibra
+  for (let i = 0; i < S*S; i++) { const x = i % S, y = (i/S) | 0, clump = 0.6 + 0.4*Math.sin(x*0.09 + Math.sin(y*0.07)*2)*Math.sin(y*0.11 + x*0.03);
+    const v = hash(i*0.37, 5) < 0.8 ? 255*Math.pow(hash(i*0.11, 2), 0.7)*clump : 0; img.data[i*4] = img.data[i*4+1] = img.data[i*4+2] = v; img.data[i*4+3] = 255; }
+  ctx.putImageData(img, 0, 0); return texRep(c, 9); })();
+const fibCol = (() => { const [c, ctx] = mk(512, 512); ctx.fillStyle = '#f2f2f2'; ctx.fillRect(0, 0, 512, 512);   // variación de tono de la tela
+  for (let i = 0; i < 14000; i++) { const x = hash(i, 21)*512, y = hash(i, 22)*512, a = hash(i, 23)*Math.PI, l = 5 + hash(i, 24)*16, v = 175 + hash(i, 25)*80;
+    ctx.strokeStyle = `rgba(${v},${v},${v},0.5)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a)*l, y + Math.sin(a)*l); ctx.stroke(); }
+  return texRep(c, 3, true); })();
+function felt(color, opts = {}) {
+  const col = new THREE.Color(color);
+  const m = new THREE.MeshPhysicalMaterial({color: col, map: fibCol, roughness: 1, metalness: 0, sheen: 1, sheenRoughness: 0.6, sheenColor: col.clone().lerp(new THREE.Color('#ffffff'), 0.6),
+    normalMap: fibNormal, normalScale: new THREE.Vector2(0.9, 0.9), ...opts});
+  m.userData.color = col; return m;
+}
+const SHELLS = 12;
+function fuzz(mesh, len = 0.035) {     // capas de pelusa: oscuras abajo, claras en la punta, con sombra
+  const base = mesh.material.userData.color || new THREE.Color('#ffffff');
+  for (let i = 1; i <= SHELLS; i++) { const k = i/SHELLS;
+    const m = new THREE.MeshStandardMaterial({color: base.clone().multiplyScalar(0.72 + 0.38*k).lerp(new THREE.Color('#ffffff'), 0.12*k*k), roughness: 1, alphaMap: fuzzTex, alphaTest: 0.32 + 0.63*k});
+    const bm = mesh.material.map; if (bm && bm !== fibCol) { m.map = bm; m.color.setScalar(0.75 + 0.3*k); }
+    m.onBeforeCompile = sh => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `vec3 transformed = position + normal * ${(len*k).toFixed(4)} + vec3(0.0, ${(-len*0.15*k*k).toFixed(4)}, 0.0);`); };
+    const sm = new THREE.Mesh(mesh.geometry, m); sm.castShadow = false; sm.receiveShadow = true; sm.raycast = () => {}; mesh.add(sm); }
+  return mesh;
+}
+function M(geo, mat, fz = 0.035) { const m = new THREE.Mesh(geo, mat); m.castShadow = true; m.receiveShadow = true; if (fz) fuzz(m, fz); return m; }
+// costura: puntadas a lo largo de una curva
+function stitches(curve, n, color = '#f6efe2', r = 0.012) {
+  const g = new THREE.Group(), mat = new THREE.MeshStandardMaterial({color, roughness: 0.8});
+  const geo = new THREE.CapsuleGeometry(r, r*4.5, 2, 6);
+  for (let i = 0; i < n; i++) { const t = (i + 0.25)/n, p = curve.getPointAt(t), tg = curve.getTangentAt(t);
+    const s = new THREE.Mesh(geo, mat); s.position.copy(p); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tg); g.add(s); }
+  return g;
+}
+// forma inflada (cojín): contorno 2D extruido con bisel grande y redondo
+function puffy(pts, depth = 0.1, bevel = 0.08) {
+  const sh = new THREE.Shape(pts.map(([x, y]) => new THREE.Vector2(x, y)));
+  const g = new THREE.ExtrudeGeometry(sh, {depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel*0.9, bevelSegments: 8, curveSegments: 24});
+  g.translate(0, 0, -depth/2); g.computeVertexNormals(); return g;
+}
+const ring = (cx, cy, rx, ry, n = 40) => Array.from({length: n}, (_, i) => { const a = i/n*Math.PI*2; return [cx + Math.cos(a)*rx, cy + Math.sin(a)*ry]; });
+const curve3 = (pts) => new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), true);
+
+// ============================================================ escenario: tablero de fieltro
+const board = M(new THREE.PlaneGeometry(14, 20), felt('#efe3cf', {map: null, normalScale: new THREE.Vector2(0.9, 0.9)}), 0); board.position.z = -0.6; scene.add(board);
+
+// ------------------------------------------------------------ 1) dientes de almohadita + encía de cojín
+const mouth = new THREE.Group(); scene.add(mouth);
+{ const gum = M(puffy([[-2.2, 0.2], [2.2, 0.2], [2.2, 1.15], [-2.2, 1.15]].map(([x, y]) => [x, y]), 0.45, 0.2), felt('#ee8f9f'));
+  mouth.add(gum);
+  const teethX = [-1.65, -1.12, -0.58, 0, 0.58, 1.12, 1.65], TW = [0.42, 0.44, 0.48, 0.56, 0.48, 0.44, 0.42];
+  teethX.forEach((x, i) => { const w = TW[i]/2, hgt = i === 3 ? 0.95 : 0.8 + (i % 2)*0.05;
+    const pts = [[-w, 0.25], [w, 0.25], [w*1.02, -hgt*0.45], [w*0.8, -hgt*0.85], [0, -hgt], [-w*0.8, -hgt*0.85], [-w*1.02, -hgt*0.45]];
+    const sm = new THREE.SplineCurve(pts.concat([pts[0]]).map(([a, b]) => new THREE.Vector2(a, b))).getPoints(48).map(v => [v.x, v.y]);
+    const t = M(puffy(sm, 0.34, 0.17), felt('#fbf7ee')); t.position.set(x, 0.22, 0.12); mouth.add(t);
+    const cv = new THREE.CatmullRomCurve3(sm.slice(0, -1).map(([a, b]) => new THREE.Vector3(a*0.84, b*0.84 + 0.02, 0.4)), true);
+    const st = stitches(cv, 26, '#c9b8a0', 0.008); st.position.copy(t.position); mouth.add(st); });
+  const gs = stitches(new THREE.CatmullRomCurve3([[-2.05, 1.05], [2.05, 1.05]].map(([x, y]) => new THREE.Vector3(x, y, 0.45))), 34, '#fff3f5', 0.011); mouth.add(gs);
+}
+mouth.position.set(0, 1.2, 0);
+{ const low = mouth.clone(true); low.scale.set(0.94, -1, 1); low.position.y = -0.2; low.children.forEach(c => c.position.y += 0); const wrap = new THREE.Group(); [...mouth.children].forEach(c => wrap.add(c)); mouth.add(wrap); wrap.position.y = 0.95; mouth.add(low); low.position.y = -0.95; }
+// cepillo: mango de fieltro y cerdas de lana
+const brush = new THREE.Group(); scene.add(brush);
+{ const handle = M(new THREE.CapsuleGeometry(0.14, 2.4, 8, 24), felt('#3fb7c8')); handle.rotation.z = Math.PI/2; handle.position.x = 1.4; brush.add(handle);
+  const head = M(new THREE.CapsuleGeometry(0.16, 0.55, 8, 24), felt('#3fb7c8')); head.rotation.z = Math.PI/2; brush.add(head);
+  const yarn = felt('#ffffff', {sheenColor: new THREE.Color('#ffffff')});
+  for (let i = 0; i < 9; i++) for (let j = 0; j < 2; j++) { const b = M(new THREE.CapsuleGeometry(0.045, 0.32, 4, 10), yarn, 0.01); b.position.set(-0.36 + i*0.09, 0.3, -0.05 + j*0.1); brush.add(b); }
+  const st = stitches(new THREE.CatmullRomCurve3([[0.3, 0.13], [2.6, 0.13]].map(([x, y]) => new THREE.Vector3(x, y, 0.05))), 22, '#e8f7fa', 0.009); brush.add(st);
+}
+// estrellitas de fieltro
+const stars = [0, 1, 2].map(i => { const pts = Array.from({length: 10}, (_, k) => { const a = k*Math.PI/5 + Math.PI/2, r = k % 2 ? 0.1 : 0.24; return [Math.cos(a)*r, Math.sin(a)*r]; });
+  const s = M(puffy(pts, 0.05, 0.05), felt(['#f4d03f', '#ffffff', '#f4d03f'][i])); scene.add(s); return s; });
+
+// ------------------------------------------------------------ 2) Dra. Verónica, muñeca de fieltro
+const vero = new THREE.Group(); scene.add(vero);
+const SKIN = '#f2c4a0';
+const veroParts = {};
+{ const body = M(new THREE.CapsuleGeometry(0.62, 0.9, 12, 32), felt('#2b3a63')); body.position.y = -1.0; body.scale.set(1, 1, 0.9); vero.add(body);
+  const vneck = M(puffy([[-0.22, 0], [0.22, 0], [0, -0.32]], 0.02, 0.025), felt('#1e1e26'), 0.006); vneck.position.set(0, -0.32, 0.45); vero.add(vneck);
+  const tag = M(new THREE.BoxGeometry(0.42, 0.18, 0.03), felt('#fbf8f0'), 0.004); tag.position.set(-0.3, -0.62, 0.47); vero.add(tag);
+  const neck = M(new THREE.CylinderGeometry(0.16, 0.18, 0.3, 20), felt(SKIN)); neck.position.y = -0.2; vero.add(neck);
+  const head = new THREE.Group(); head.position.y = 0.35; vero.add(head); veroParts.head = head;
+  const face = M(new THREE.SphereGeometry(0.55, 40, 32), felt(SKIN)); face.scale.set(1, 1.08, 0.9); head.add(face);
+  [-1, 1].forEach(d => { const eye = M(new THREE.SphereGeometry(0.075, 20, 16), new THREE.MeshStandardMaterial({color: '#1d1b19', roughness: 0.25}), 0); eye.position.set(d*0.19, 0.05, 0.47); eye.scale.z = 0.5; head.add(eye);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), new THREE.MeshBasicMaterial({color: '#ffffff'})); hl.position.set(d*0.19 + 0.025, 0.08, 0.51); head.add(hl);
+    const ch = M(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 24), felt('#f2a0a0'), 0.006); ch.rotation.x = Math.PI/2; ch.position.set(d*0.3, -0.12, 0.44); ch.lookAt(ch.position.clone().multiplyScalar(3)); ch.rotateX(Math.PI/2); head.add(ch); });
+  const smile = stitches(new THREE.CatmullRomCurve3([[-0.16, -0.17], [-0.08, -0.25], [0, -0.27], [0.08, -0.25], [0.16, -0.17]].map(([x, y]) => new THREE.Vector3(x, y, 0.5))), 9, '#9b2d3a', 0.014); head.add(smile);
+  // gorro con lunares + banda verde
+  const cap = M(new THREE.SphereGeometry(0.6, 40, 20, 0, Math.PI*2, 0, 1.45), felt('#ece6f3')); cap.position.y = 0.12; cap.scale.set(1.04, 0.8, 1); cap.rotation.x = -0.2; head.add(cap);
+  for (let i = 0; i < 14; i++) { const a = i*2.4, b = 0.25 + (i % 5)*0.17, v = new THREE.Vector3(Math.sin(b)*Math.sin(a), Math.cos(b), Math.sin(b)*Math.cos(a)).multiplyScalar(0.61).applyAxisAngle(new THREE.Vector3(1, 0, 0), -0.2);
+    const dot = M(new THREE.CylinderGeometry(0.05, 0.05, 0.015, 16), felt(['#e58aa0', '#7a9cc6', '#9a7ab8'][i % 3]), 0); dot.position.copy(v).add(new THREE.Vector3(0, 0.08, 0)); dot.lookAt(v.clone().multiplyScalar(3)); dot.rotateX(Math.PI/2); if (v.z > -0.1) head.add(dot); }
+  const band = M(new THREE.TorusGeometry(0.56, 0.05, 12, 48), felt('#2fae5a'), 0.008); band.rotation.x = Math.PI/2 - 0.25; band.position.set(0, 0.26, 0.02); head.add(band);
+  // pelo de lana: hebras onduladas en degradé (balayage dorado)
+  const ROOT = new THREE.Color('#6e4527'), TIP = new THREE.Color('#d6a352');
+  for (let s = -1; s <= 1; s += 2) for (let k = 0; k < 9; k++) { const a = 0.35 + k*0.17, x0 = s*Math.sin(a)*0.55, z0 = Math.cos(a)*0.45 - 0.15;
+    const pts = []; for (let j = 0; j <= 10; j++) { const y = 0.25 - j*0.16; pts.push(new THREE.Vector3(x0*(1 + j*0.05) + s*0.06*Math.sin(j*1.6 + k), y, z0 - 0.05*j*(k > 5 ? 1 : 0.2))); }
+    const c = new THREE.CatmullRomCurve3(pts), g = new THREE.TubeGeometry(c, 48, 0.07, 10, false);
+    const col = []; const pos = g.attributes.position; for (let i = 0; i < pos.count; i++) { const v = clamp01((0.25 - pos.getY(i))/1.6); const cc = ROOT.clone().lerp(TIP, v); col.push(cc.r, cc.g, cc.b); }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); const m = felt('#ffffff', {vertexColors: true}); m.userData.color = TIP;
+    head.add(M(g, m, 0.03)); }
+  // brazos: uno saluda
+  const armM = felt('#2b3a63'), handM = felt(SKIN);
+  const armL = new THREE.Group(); armL.position.set(0.62, -0.55, 0); vero.add(armL);
+  { const a = M(new THREE.CapsuleGeometry(0.15, 0.6, 8, 20), armM); a.position.y = -0.38; armL.add(a); const h = M(new THREE.SphereGeometry(0.15, 20, 16), handM); h.position.y = -0.82; armL.add(h); armL.rotation.z = 0.25; }
+  const armR = new THREE.Group(); armR.position.set(-0.62, -0.55, 0); vero.add(armR); veroParts.armR = armR;
+  { const a = M(new THREE.CapsuleGeometry(0.15, 0.6, 8, 20), armM); a.position.y = 0.38; armR.add(a); const h = M(new THREE.SphereGeometry(0.16, 20, 16), handM); h.position.y = 0.82; armR.add(h); }
+  const seam = stitches(new THREE.CatmullRomCurve3([[0, -0.4, 0.47], [0, -1.6, 0.47]].map(p => new THREE.Vector3(...p))), 14, '#8fa0d0', 0.01); vero.add(seam);
+}
+// globo de diálogo de fieltro
+const bubble = new THREE.Group(); scene.add(bubble);
+
+// ------------------------------------------------------------ 3) parche bordado con texto
+function patchTex(lines, bg, fg) { const [c, ctx] = mk(1024, 512); ctx.fillStyle = bg; ctx.fillRect(0, 0, 1024, 512);
+  ctx.globalAlpha = 0.18; ctx.drawImage(FIB, 0, 0, 1024, 512); ctx.globalAlpha = 1;
+  ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  lines.forEach(([t, f, y]) => { ctx.font = f; ctx.fillText(t, 512, y);
+    ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]); ctx.strokeText(t, 512, y); ctx.setLineDash([]); });
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; }
+function patch(w, h, tex, edge) {
+  const g = new THREE.Group(), r = h*0.22;
+  const sh = [[-w/2 + r, -h/2], [w/2 - r, -h/2], [w/2, -h/2 + r], [w/2, h/2 - r], [w/2 - r, h/2], [-w/2 + r, h/2], [-w/2, h/2 - r], [-w/2, -h/2 + r]];
+  const geo = puffy(sh, 0.14, 0.1); const uv = geo.attributes.uv, pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, (pos.getX(i) + w/2)/w, (pos.getY(i) + h/2)/h);
+  const m = felt('#ffffff', {map: tex}); m.userData.color = new THREE.Color(edge); g.add(M(geo, m, 0.025));
+  const cv = new THREE.CatmullRomCurve3(sh.map(([x, y]) => new THREE.Vector3(x*0.93, y*0.86, 0.22)), true, 'catmullrom', 0.1); g.add(stitches(cv, 70, '#fffaf0', 0.012));
+  return g;
+}
+let logoPatch, ctaPatch, hiPatch;
+async function build() {
+  await Promise.all(['40px Bebas', '700 40px Caveat'].map(f => document.fonts.load(f))); await document.fonts.ready;
+  const logo = new Image(); logo.src = '/marca/logo2.svg'; await logo.decode();
+  { const [c, ctx] = mk(1024, 512); ctx.fillStyle = '#f6efe2'; ctx.fillRect(0, 0, 1024, 512); ctx.globalAlpha = 0.2; ctx.drawImage(FIB, 0, 0, 1024, 512); ctx.globalAlpha = 1;
+    const lw = 800, lh = lw*logo.height/logo.width; ctx.drawImage(logo, 112, 256 - lh/2, lw, lh); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    logoPatch = patch(2.7, 1.35, t, '#f6efe2'); scene.add(logoPatch); }
+  ctaPatch = patch(2.7, 1.1, patchTex([['AGENDA TU', '150px Bebas', 175], ['EVALUACIÓN', '150px Bebas', 345]], '#d8a596', '#ffffff'), '#d8a596'); scene.add(ctaPatch);
+  hiPatch = patch(1.5, 0.75, patchTex([['¡Hola!', '700 230px Caveat', 270]], '#fbf8f0', '#2b3a63'), '#fbf8f0'); scene.add(hiPatch);
+}
+
+// ============================================================ línea de tiempo (stop-motion a 12 cuadros/s)
+const boil = (t, id, a = 1) => { const f = Math.floor(t*STOP); return [(hash(f, id) - 0.5)*0.01*a, (hash(f, id + 9) - 0.5)*0.01*a, (hash(f, id + 17) - 0.5)*0.02*a]; };
+const pop = (t, t0, d = 0.35) => Math.max(0.001, eback(seg(t, t0, t0 + d)));
+function frame(f) {
+  const t = f/FPS, tq = Math.floor(t*STOP)/STOP;
+  // cámara: tres planos con cortes suaves
+  const s1 = tq < 5.2, s2 = tq >= 5.2 && tq < 10.2;
+  if (s1) { camera.position.set(0, 0.9, 14.8 - 1.2*eio(seg(tq, 0, 5))); camera.lookAt(0, 0.9, 0); }
+  else if (s2) { camera.position.set(-0.4 + 0.4*seg(tq, 5.2, 10), 0.2, 11.5 - 0.8*eio(seg(tq, 5.2, 10))); camera.lookAt(0, -0.1, 0); }
+  else { camera.position.set(0, 0.2, 12.5 - 0.8*eio(seg(tq, 10.2, 15))); camera.lookAt(0, 0.2, 0); }
+  // 1) dientes y cepillo
+  mouth.visible = s1; brush.visible = s1 && tq > 0.9; stars.forEach(s => s.visible = s1 && tq > 3.3);
+  if (s1) { const [bx, by, br] = boil(tq, 1); mouth.position.set(bx, 0.75 + by, 0); mouth.rotation.z = br*0.5; mouth.scale.setScalar(pop(tq, 0.1, 0.5));
+    const k = seg(tq, 1.0, 3.2), sx = lerp(-1.8, 1.7, k) + 0.18*Math.sin(tq*22)*seg(tq, 1.1, 1.3)*(1 - seg(tq, 3.0, 3.2));
+    brush.position.set(tq < 1.0 ? -3.5 : (tq > 3.2 ? lerp(1.7, 4.5, eio(seg(tq, 3.2, 3.8))) : sx), 1.55 + 0.05*Math.sin(tq*22), 0.6); brush.rotation.set(0, 0, Math.PI + 0.05*Math.sin(tq*11));
+    stars.forEach((s, i) => { const k2 = pop(tq, 3.3 + i*0.18, 0.3); s.scale.setScalar(k2); s.position.set([-1.5, 0.1, 1.6][i], [3.0, 3.35, 3.05][i], 0.4); s.rotation.z = tq*1.5 + i; }); }
+  // 2) Dra. Verónica saluda + "¡Hola!"
+  vero.visible = s2; hiPatch.visible = s2 && tq > 6.3;
+  if (s2) { const [bx, by, br] = boil(tq, 2); vero.position.set(-0.35 + bx, -0.25 + by, 0); vero.scale.setScalar(pop(tq, 5.25, 0.5)); vero.rotation.z = br*0.4;
+    veroParts.armR.rotation.z = 0.5 + 0.45*Math.sin(tq*9)*seg(tq, 5.8, 6.1);
+    veroParts.head.rotation.z = 0.12*Math.sin(tq*2.5); veroParts.head.rotation.y = 0.15*Math.sin(tq*1.3);
+    const k = pop(tq, 6.3, 0.4); hiPatch.scale.setScalar(k); hiPatch.position.set(0.95 + boil(tq, 3)[0], 1.75, 0.6); hiPatch.rotation.z = -0.1 + boil(tq, 3)[2]; }
+  // 3) parches de cierre
+  logoPatch.visible = ctaPatch.visible = !s1 && !s2;
+  if (!s1 && !s2) { const [bx, by, br] = boil(tq, 4); logoPatch.scale.setScalar(1.25*pop(tq, 10.3, 0.45)); logoPatch.position.set(bx, 1.1 + by, 0.1); logoPatch.rotation.z = -0.04 + br;
+    const [cx, cy, cr] = boil(tq, 5); ctaPatch.scale.setScalar(1.2*pop(tq, 11.0, 0.45)); ctaPatch.position.set(cx, -0.75 + cy, 0.2); ctaPatch.rotation.z = 0.05 + cr; }
+  renderer.render(scene, camera);
+}
+window.TOTAL_FRAMES = Math.round(DURATION*FPS);
+window.renderFrame = f => { frame(f); return true; };
+window.GPU = (() => { try { const g = document.createElement('canvas').getContext('webgl2'); const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return 'desconocido'; } })();
+build().then(() => { window.READY = true; });
+</script></body></html>

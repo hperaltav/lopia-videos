@@ -1,0 +1,5 @@
+# Copia este archivo como .env (sin .txt, en esta misma carpeta) y pega tu clave de la API de Anthropic.
+# Sin clave, el Studio funciona igual pero arma los guiones con plantillas.
+ANTHROPIC_API_KEY=pega-aqui-tu-clave
+# Modelo opcional
+MODELO=claude-sonnet-5-5
