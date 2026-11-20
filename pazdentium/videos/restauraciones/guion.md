@@ -1,66 +1,35 @@
-# PazDentium · Incrustación de resina, corona con perno de fibra e implante (v1)
+# PazDentium · Incrustación, corona con perno o implante (v2)
 
-Formato: vertical 1080×1920, ~1:45. Explicación directa, sin gancho. Todo se muestra en un primer molar inferior.
-Estilo: 3D realista con cortes tipo lámina médica (capas, líneas guía, cotas), fondo clínico claro.
+Para personas que saben poco o nada de dientes. Video informativo, directo, ~1:40. Todo en un molar inferior.
+Regla visual: pocas cosas a la vez (máximo 1 o 2 rótulos grandes en pantalla), sin tablas.
 
-## Escena 1 · Presentación (0:00–0:07)
-Visual: molar inferior realista girando lentamente; título.
-Pantalla: "Incrustación, corona con perno o implante"
-Locución: "Incrustación de resina, corona con perno de fibra o implante dental. Así se diferencian, usando como ejemplo un molar."
+## 1 · Presentación (0:00–0:06)
+Visual: molar girando sobre fondo claro; título "Incrustación, corona con perno o implante".
+Voz: Incrustación, corona con perno o implante: tres formas de recuperar un molar. Veamos en qué se diferencian.
 
-## Escena 2 · El molar y la regla general (0:07–0:20)
-Visual: corte del molar en el hueso; rótulos: esmalte, dentina, pulpa, conductos, encía, hueso. Luego una barra "tejido dental sano" de mucho a nada con los tres tratamientos.
-Locución: "Un molar tiene esmalte y dentina, una pulpa con nervios y vasos, y raíces dentro del hueso. Qué tratamiento corresponde depende, sobre todo, de cuánto diente sano queda."
+## 2 · Así es un molar sano (0:06–0:28)
+Visual: molar sano entero y luego en corte. Los rótulos aparecen de a uno, al ritmo de la voz: corona → cúspides → esmalte → dentina → pulpa y cámara pulpar → conductos → raíces y hueso.
+Voz: Así es un molar sano. La parte que se ve en la boca es la corona, y sus puntas se llaman cúspides. Por fuera está el esmalte, la capa más dura, y debajo, la dentina. En el interior está la pulpa, donde está el nervio, en un espacio llamado cámara pulpar. Desde ahí bajan los conductos por las raíces, que están firmes dentro del hueso.
 
-## Escena 3 · Incrustación de resina (0:20–0:45)
-Visual: restauración antigua o caries grande; cavidad preparada; la pieza de resina fabricada fuera de la boca baja y se adhiere (línea de cemento). Comparación inlay (dentro de las cúspides) y onlay (cubre cúspides).
-Locución: "La incrustación es una restauración que se fabrica fuera de la boca, en laboratorio o con tecnología digital, y luego se adhiere al diente. Se usa en cavidades grandes cuando todavía queda suficiente diente sano. Si rellena el interior se llama inlay; si además cubre cúspides, onlay."
-Ventajas en pantalla:
-- Conserva más diente que una corona.
-- Mejor forma y contacto que un relleno directo grande.
-- Menos filtración y sensibilidad que la resina directa.
-Desventajas en pantalla:
-- Generalmente más de una sesión y mayor costo que un relleno directo.
-- Exige buen aislamiento al adherirla.
-- No sirve si queda poco diente para adherir.
-- A largo plazo, vigilar caries en los bordes.
+## 3 · De qué depende (0:28–0:33)
+Visual: barra simple "diente sano: mucho → poco → nada".
+Voz: El tratamiento depende de cuánto diente sano queda.
 
-## Escena 4 · Corona con perno de fibra (0:45–1:12)
-Visual: molar con tratamiento de conducto (gutapercha) y gran pérdida de corona; perno de fibra en el conducto distal; muñón; corona. Cota "férula ≈ 2 mm".
-Locución: "Cuando el diente ya tiene tratamiento de conducto y perdió gran parte de su corona, se reconstruye un muñón y se cubre con una corona. El perno de fibra ayuda a retener ese muñón; no refuerza el diente. En molares muchas veces no se necesita, porque la cámara pulpar ya da retención. Lo clave es conservar alrededor un anillo de diente sano de unos dos milímetros, llamado férula."
-Ventajas en pantalla:
-- Conserva la raíz natural.
-- Con fibra, la complicación más común es que el perno se despegue; los pernos metálicos se asocian más a fracturas de raíz.
-Desventajas en pantalla:
-- Requiere tratamiento de conducto previo.
-- Se desgasta el diente para la corona; varias sesiones.
-- Sin férula suficiente, el pronóstico es peor.
+## 4 · Incrustación (0:33–0:53)
+Visual: molar con un daño grande en la corona; se limpia; una pieza a medida encaja como pieza de puzle. Al final, dos líneas: ✓ Conserva más diente · ✗ Más sesiones y costo.
+Voz: Si el daño es grande pero queda bastante diente, se usa una incrustación: una pieza de resina hecha a medida fuera de la boca, que se pega al diente. Puede rellenar el interior o cubrir también las cúspides. Su ventaja es que conserva más diente que una corona. Su desventaja es que suele requerir más de una sesión y cuesta más que un relleno común.
 
-## Escena 5 · Implante dental (1:12–1:35)
-Visual: diente no recuperable (fractura de raíz); extracción; implante en el hueso; el hueso se une a las espiras; pilar y corona.
-Locución: "Si el diente no se puede conservar, se extrae y se reemplaza con un implante: un tornillo, generalmente de titanio, que se une al hueso en un proceso que toma meses. Después se coloca un pilar y una corona."
-Ventajas en pantalla:
-- No desgasta los dientes vecinos.
-- Baja tasa de fracaso en estudios grandes.
-Desventajas en pantalla:
-- Requiere cirugía y más tiempo.
-- Necesita hueso suficiente; a veces, injerto.
-- Riesgo de periimplantitis: requiere higiene y controles.
-- Más riesgo con tabaquismo o antecedentes de periodontitis.
+## 5 · Corona con perno de fibra (0:53–1:16)
+Visual: molar con muy poca corona; en corte se ven los conductos ya tratados; entra el perno; se forma la base; baja la corona. Una cota simple marca el borde de 2 mm. Al final: ✓ Conserva tu raíz · ✗ Requiere tratamiento de conducto.
+Voz: Si el diente perdió casi toda su corona y ya tiene tratamiento de conducto, es decir, se le retiró el nervio, se reconstruye una base con resina y se cubre con una corona. A veces se agrega un perno de fibra dentro de un conducto para sujetar esa base. Para que funcione, debe quedar un borde de diente sano de unos dos milímetros. Su ventaja es que se conserva la raíz natural. Su desventaja es que requiere ese tratamiento y desgastar el diente.
 
-## Escena 6 · Resumen (1:35–1:45)
-Visual: los tres molares en corte, lado a lado, con una tabla.
-| | Incrustación | Perno + corona | Implante |
-|---|---|---|---|
-| Tu diente | Se conserva | Se conserva la raíz | Se reemplaza |
-| Requisito | Suficiente diente sano | Endodoncia y férula | Hueso suficiente |
-| Riesgo principal | Caries en los bordes | Despegamiento del perno | Periimplantitis |
-Locución: "Mientras más diente sano queda, más conservador puede ser el tratamiento. La indicación se define con examen clínico y radiografía."
+## 6 · Implante (1:16–1:38)
+Visual: las tres piezas aparecen por separado, con su nombre: tornillo de titanio, pilar, corona. Luego se arman dentro del hueso donde estaba el diente. Al final: ✓ No toca los dientes vecinos · ✗ Cirugía, más tiempo y hueso suficiente.
+Voz: Si el diente no se puede salvar, se extrae y se reemplaza con un implante. Tiene tres partes: un tornillo de titanio, que se coloca en el hueso y se une a él en algunos meses; un pilar, que conecta el tornillo con la parte visible; y una corona, que es el diente nuevo. Su ventaja es que no hay que tocar los dientes vecinos. Su desventaja es que requiere cirugía, más tiempo y suficiente hueso.
 
-## Escena 7 · Cierre (1:45–1:50)
-Logo PazDentium · "Agenda tu evaluación".
+## 7 · Cierre (1:38–1:48)
+Visual: los tres molares lado a lado con su nombre; logo PazDentium; "Agenda tu evaluación".
+Voz: Mientras más diente sano queda, más se puede conservar de tu propio diente. Tu dentista lo define con un examen y una radiografía. Agenda tu evaluación en PazDentium.
 
-## Fuentes
-- Inlays y onlays: Wikipedia (Inlays and onlays); Fan et al., Operative Dentistry 2021 (revisión sistemática); contraindicaciones según clases de odontología conservadora (U. de Basora).
-- Perno y férula: AAE Endodontics: Colleagues for Excellence (restauración de dientes tratados); Peroz et al., Quintessence Int 2005; revisión 2024 en J Funct Biomater (complicaciones de pernos de fibra y metálicos).
-- Implantes: estudio de 158.824 implantes (PMC11856851); factores de riesgo (PMC12241379; revisión de U. de Pennsylvania).
+## Fuentes (v1)
+Ver versión 1: revisiones sobre inlays/onlays, AAE sobre restauración de dientes tratados, Peroz et al. 2005 (férula de 2 mm) y estudios de supervivencia de implantes.
