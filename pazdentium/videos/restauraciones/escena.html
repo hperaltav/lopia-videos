@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<title>PazDentium · Incrustación, corona con poste o implante</title>
+<style>
+  @font-face{font-family:'Inter';font-weight:700;src:url(/motor/fonts/Inter-Bold.otf);}
+  @font-face{font-family:'Inter';font-weight:800;src:url(/motor/fonts/Inter-ExtraBold.otf);}
+  html,body{margin:0;background:#000;overflow:hidden;}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;font-family:Inter,Helvetica,Arial,sans-serif;
+    background:radial-gradient(ellipse at 50% 45%,#f8fafc 0%,#e4eaf0 68%,#d3dce5 100%);}
+  #grid{position:absolute;inset:0;background-image:linear-gradient(rgba(40,70,100,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(40,70,100,.045) 1px,transparent 1px);background-size:54px 54px;}
+  canvas#c{position:absolute;inset:0;width:1080px;height:1920px;}
+  .ui{position:absolute;opacity:0;will-change:opacity,transform;}
+  #title{left:0;right:0;top:170px;text-align:center;color:#14293d;}
+  #title .k{font-size:30px;letter-spacing:6px;font-weight:700;color:#2f7fa8;}
+  #title h1{margin:14px 0 0;font-size:84px;font-weight:800;letter-spacing:-1.5px;line-height:1.02;}
+  #intro{left:0;right:0;top:250px;text-align:center;color:#14293d;font-weight:800;font-size:74px;line-height:1.18;letter-spacing:-1px;}
+  #intro span{display:block;opacity:0;}
+  .lab{font-size:36px;font-weight:700;color:#14293d;white-space:nowrap;}
+  .lab{background:rgba(255,255,255,.92);padding:12px 24px;border-radius:40px;box-shadow:0 6px 20px rgba(20,41,61,.12);}
+  #names{left:0;right:0;top:990px;display:flex;justify-content:space-around;padding:0 40px;color:#14293d;font-size:34px;font-weight:700;text-align:center;}
+  #names div{width:300px;}
+  #cta{left:0;right:0;bottom:150px;display:flex;flex-direction:column;align-items:center;gap:34px;}
+  #cta img{width:400px;}
+  #cta .b{background:#2f5f86;color:#fff;font-weight:800;font-size:54px;padding:26px 60px;border-radius:80px;}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;}
+</style>
+<script type="importmap">{"imports":{"three":"/motor/node_modules/three/build/three.module.js"}}</script>
+</head><body>
+<div id="stage">
+  <div id="grid"></div>
+  <canvas id="c" width="1080" height="1920"></canvas>
+  <div class="ui" id="intro"><span>Incrustación</span><span>Corona con poste</span><span>Implante</span></div>
+  <div class="ui" id="title"><div class="k" id="tk"></div><h1 id="th"></h1></div>
+  <div class="ui lab" id="l1"></div><div class="ui lab" id="l2"></div>
+  <div class="ui" id="names"><div>Incrustación</div><div>Corona con poste</div><div>Implante</div></div>
+  <div class="ui" id="cta"><img id="logo" src="/marca/logo2.svg" alt=""><div class="b">Agenda tu evaluación</div></div>
+  <div id="flash"></div>
+</div>
+<script type="module">
+import * as THREE from 'three';
+const FPS = 30, DURATION = 69.5;
+const SC = Number(new URLSearchParams(location.search).get('scale') || 1);
+const W = Math.round(1080*SC), H = Math.round(1920*SC);
+if (SC !== 1) { const st = document.getElementById('stage'); st.style.transform = `scale(${SC})`; st.style.transformOrigin = '0 0'; }
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x)), mix = (a, b, t) => a + (b - a)*t, seg = (t, a, b) => clamp((t - a)/(b - a), 0, 1);
+const eio = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3)/2, eout = x => 1 - Math.pow(1 - x, 3);
+const eback = x => { const c1 = 1.5, c3 = c1 + 1; return 1 + c3*Math.pow(x - 1, 3) + c1*Math.pow(x - 1, 2); };
+
+// ===================================================== guion (tiempos medidos en el audio)
+const T = { intro: 0, depende: 4.62, inc: 7.05, limpia: 12.83, molde: 14.97, lab: 17.41, pega: 20.34,
+  cor: 23.29, conducto: 29.01, poste: 33.21, base: 36.14, munon: 38.13, coronaFija: 39.6,
+  imp: 42.84, usa: 46.6, partes: 48.03, tornillo: 49.31, corona: 51.96, coloca: 54.23, meses: 56.4, final: 59.01, pone: 60.51,
+  cierre: 61.73, agenda: 65.94 };
+
+// ===================================================== SDF del molar (mm; y = 0 en el cuello del diente)
+const len3 = (x, y, z) => Math.sqrt(x*x + y*y + z*z);
+const smin = (a, b, k) => { const h = clamp(0.5 + 0.5*(b - a)/k, 0, 1); return mix(b, a, h) - k*h*(1 - h); };
+const smax = (a, b, k) => -smin(-a, -b, k);
+function rbox(px, py, pz, bx, by, bz, r) { const qx = Math.abs(px) - bx + r, qy = Math.abs(py) - by + r, qz = Math.abs(pz) - bz + r;
+  return len3(Math.max(qx, 0), Math.max(qy, 0), Math.max(qz, 0)) + Math.min(Math.max(qx, Math.max(qy, qz)), 0) - r; }
+function cone(px, py, pz, ax, ay, az, bx, by, bz, ra, rb, zs = 1) { pz /= zs; const bax = bx - ax, bay = by - ay, baz = bz - az, pax = px - ax, pay = py - ay, paz = pz - az;
+  const h = clamp((pax*bax + pay*bay + paz*baz)/(bax*bax + bay*bay + baz*baz), 0, 1); return len3(pax - bax*h, pay - bay*h, paz - baz*h)*Math.min(1, zs) - mix(ra, rb, h); }
+const CUSPS = [[-3.1, 6.1, 2.1, 1.85], [0.2, 6.3, 2.4, 1.9], [3.3, 6.0, 1.9, 1.7], [-2.5, 6.5, -2.2, 1.95], [2.6, 6.4, -2.2, 1.9]];
+function sdCrown(x, y, z) { const narrow = 1 - 0.13*clamp((3.2 - y)/3.2, 0, 1); let d = rbox(x/narrow, y - 3.5, z/narrow, 5.4, 3.1, 4.7, 2.0)*narrow;
+  for (const [cx, cy, cz, r] of CUSPS) d = smin(d, len3(x - cx, y - cy, z - cz) - r, 1.4);
+  return smax(d, -(len3(0, y - 8.05, z) - 1.0 - 0.15*Math.cos(x*0.9)), 0.8); }
+function sdRoots(x, y, z) { const m = cone(x, y, z, -2.7, 1.0, 0, -3.5, -12.6, 0, 1.75, 0.55, 1.9), dd = cone(x, y, z, 2.6, 1.0, 0, 3.7, -11.8, 0, 1.7, 0.55, 1.8);
+  return smin(smin(m, dd, 0.9), rbox(x, y + 0.6, z, 4.6, 2.2, 3.9, 1.6), 1.6); }
+const sdTooth = (x, y, z) => smin(sdCrown(x, y, z), sdRoots(x, y, z), 2.2);
+const sdPulp = (x, y, z) => smin(smin(rbox(x, y - 2.0, z, 2.9, 0.95, 2.2, 0.8), Math.min(len3(x + 1.9, y - 3.2, z - 1.0) - 0.7, len3(x - 1.9, y - 3.1, z - 1.0) - 0.65), 0.6),
+  Math.min(cone(x, y, z, -2.6, 1.5, 0, -3.45, -12.2, 0, 0.5, 0.12, 1.6), cone(x, y, z, 2.55, 1.5, 0, 3.6, -11.4, 0, 0.55, 0.14, 1.6)), 0.5);
+const sdCanals = (x, y, z) => Math.min(cone(x, y, z, -2.6, 1.0, 0, -3.45, -12.2, 0, 0.5, 0.12, 1.6), cone(x, y, z, 2.55, 1.0, 0, 3.6, -11.4, 0, 0.55, 0.14, 1.6));
+// cavidad de la incrustación (mesio-oclusal, menos de la mitad del diente)
+const sdCav = (x, y, z) => { const ex = (x + 2.0)/3.1, ey = (y - 7.6)/3.0, ez = (z - 0.2)/2.7; return (len3(ex, ey, ez) - 1)*2.7; };
+// corona destruida y diente tallado
+const brokenTop = (x, z) => 2.6 + 0.7*Math.sin(x*1.3 + 0.5)*Math.cos(z*1.1) + 0.5*Math.sin(z*2.1 - x*0.7);
+const sdBroken = (x, y, z) => smax(sdTooth(x, y, z), y - brokenTop(x, z), 0.35);
+const MARGIN = 0.0, FERRULE_TOP = 2.0, POST = [2.55, 4.6, 0, 3.25, -7.0, 0];
+const sdPost = (x, y, z) => cone(x, y, z, POST[0], POST[1], POST[2], POST[3], POST[4], POST[5], 0.78, 0.5, 1);
+const sdPrep = (x, y, z) => smax(sdTooth(x, y, z) + 1.25*clamp((y - MARGIN)/0.8, 0, 1), y - FERRULE_TOP, 0.3);
+const sdCore = (x, y, z) => smax(smax(sdTooth(x, y, z) + 1.35, -(y - FERRULE_TOP + 0.2), 0.3), y - 6.4, 0.6);
+const sdCrownShell = (x, y, z) => smax(smax(sdTooth(x, y, z), -(y - MARGIN - 0.05), 0.15), -(Math.min(sdCore(x, y, z), sdPrep(x, y, z)) - 0.1), 0.1);
+// hueso y encía
+const crestY = (x, z) => -1.7 - 0.6*Math.cos(x*0.32) + 0.25*Math.sin(z*0.5);
+const gumTopY = x => 1.2 - 0.9*Math.pow(clamp(Math.abs(x)/12, 0, 1), 1.5);
+const sdBoneBlock = (x, y, z) => smax(rbox(x, y + 9.9, z, 12.5, 9.1, 7.5, 2.0), y - crestY(x, z), 1.2);
+const sdGum = (x, y, z) => smax(Math.max(rbox(x, y + 2.5, z, 12.5, 3.8, 7.6, 2.5), y - gumTopY(x)), -(y + 3.6), 0.8);
+
+// ===================================================== mallas por "surface nets"
+function surfaceNets(sdf, [x0, y0, z0], [x1, y1, z1], step) {
+  const nx = Math.ceil((x1 - x0)/step) + 1, ny = Math.ceil((y1 - y0)/step) + 1, nz = Math.ceil((z1 - z0)/step) + 1;
+  const F = new Float32Array(nx*ny*nz), id = (i, j, k) => i + nx*(j + ny*k);
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) F[id(i, j, k)] = sdf(x0 + i*step, y0 + j*step, z0 + k*step);
+  const vid = new Int32Array(nx*ny*nz).fill(-1), pos = [];
+  const C = [[0,0,0],[1,0,0],[0,1,0],[1,1,0],[0,0,1],[1,0,1],[0,1,1],[1,1,1]], E = [[0,1],[2,3],[4,5],[6,7],[0,2],[1,3],[4,6],[5,7],[0,4],[1,5],[2,6],[3,7]];
+  const v = new Float32Array(8);
+  for (let k = 0; k < nz - 1; k++) for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    let neg = 0; for (let c = 0; c < 8; c++) { v[c] = F[id(i + C[c][0], j + C[c][1], k + C[c][2])]; if (v[c] < 0) neg++; } if (neg === 0 || neg === 8) continue;
+    let sx = 0, sy = 0, sz = 0, n = 0;
+    for (const [a, b] of E) { if ((v[a] < 0) === (v[b] < 0)) continue; const t = v[a]/(v[a] - v[b]);
+      sx += C[a][0] + t*(C[b][0] - C[a][0]); sy += C[a][1] + t*(C[b][1] - C[a][1]); sz += C[a][2] + t*(C[b][2] - C[a][2]); n++; }
+    vid[id(i, j, k)] = pos.length/3; pos.push(x0 + (i + sx/n)*step, y0 + (j + sy/n)*step, z0 + (k + sz/n)*step);
+  }
+  const idx = [], quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; flip ? idx.push(a, c, b, a, d, c) : idx.push(a, b, c, a, c, d); };
+  for (let k = 1; k < nz - 1; k++) for (let j = 1; j < ny - 1; j++) for (let i = 1; i < nx - 1; i++) { const s0 = F[id(i, j, k)] < 0;
+    if ((F[id(i + 1, j, k)] < 0) !== s0) quad(vid[id(i, j - 1, k - 1)], vid[id(i, j, k - 1)], vid[id(i, j, k)], vid[id(i, j - 1, k)], s0);
+    if ((F[id(i, j + 1, k)] < 0) !== s0) quad(vid[id(i - 1, j, k - 1)], vid[id(i - 1, j, k)], vid[id(i, j, k)], vid[id(i, j, k - 1)], s0);
+    if ((F[id(i, j, k + 1)] < 0) !== s0) quad(vid[id(i - 1, j - 1, k)], vid[id(i, j - 1, k)], vid[id(i, j, k)], vid[id(i - 1, j, k)], s0); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  const nrm = new Float32Array(pos.length), e = step*0.5;
+  for (let p = 0; p < pos.length; p += 3) { const x = pos[p], y = pos[p + 1], z = pos[p + 2];
+    const gx = sdf(x + e, y, z) - sdf(x - e, y, z), gy = sdf(x, y + e, z) - sdf(x, y - e, z), gz = sdf(x, y, z + e) - sdf(x, y, z - e), l = Math.hypot(gx, gy, gz) || 1;
+    nrm[p] = gx/l; nrm[p + 1] = gy/l; nrm[p + 2] = gz/l; }
+  g.setAttribute('normal', new THREE.BufferAttribute(nrm, 3)); return g;
+}
+function vcolor(g, fn) { const p = g.attributes.position, c = new Float32Array(p.count*3), col = new THREE.Color();
+  for (let i = 0; i < p.count; i++) { col.set(fn(p.getX(i), p.getY(i), p.getZ(i))); c[i*3] = col.r; c[i*3 + 1] = col.g; c[i*3 + 2] = col.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(c, 3)); return g; }
+
+// ===================================================== escena
+const renderer = new THREE.WebGLRenderer({canvas: document.getElementById('c'), antialias: true, alpha: true, preserveDrawingBuffer: true});
+renderer.setSize(W, H, false); renderer.setPixelRatio(1); renderer.localClippingEnabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.12; renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(27, 1080/1920, 1, 600);
+scene.add(new THREE.HemisphereLight('#fffaf2', '#b9b2a6', 1.0));
+const key = new THREE.DirectionalLight('#fff6ea', 3.0); key.position.set(-20, 32, 35); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, {left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 120}); key.shadow.bias = -0.0004; scene.add(key);
+const rim = new THREE.DirectionalLight('#cfe3ff', 1.3); rim.position.set(25, 10, -30); scene.add(rim);
+{ const pm = new THREE.PMREMGenerator(renderer), s = new THREE.Scene(); s.background = new THREE.Color('#dfe7ee');
+  const l = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 8), new THREE.MeshBasicMaterial({color: '#ffffff'})); l.position.set(3, 4, 5); s.add(l); scene.environment = pm.fromScene(s, 0.04).texture; }
+const CUT0 = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);     // corte fijo del hueso y la encía
+const TCUT = new THREE.Plane(new THREE.Vector3(0, 0, -1), 20);    // corte animable del diente (20 = sin corte)
+const LIFT = new THREE.Plane(new THREE.Vector3(0, -1, 0), 99);    // revela de abajo hacia arriba (muñón)
+const phys = (o, planes) => new THREE.MeshPhysicalMaterial({side: THREE.DoubleSide, clippingPlanes: planes, clipShadows: true, ...o});
+function noiseTex(n, cell, seed, amp = 1) { const c = document.createElement('canvas'); c.width = c.height = n; const x = c.getContext('2d'), im = x.createImageData(n, n);
+  for (let i = 0; i < n*n; i++) { const px = i % n, py = (i/n) | 0; let v = 0, a = 1;
+    for (let o = 0; o < 4; o++) { const f = cell/(1 << o); v += a*(0.5 + 0.5*Math.sin(px/f*1.7 + Math.sin(py/f*1.3 + seed)*2.1 + seed*o)*Math.cos(py/f*1.9 - Math.cos(px/f*1.1 + seed)*1.7)); a *= 0.5; }
+    const g = clamp(128 + (v - 0.95)*140*amp, 0, 255); im.data[i*4] = im.data[i*4 + 1] = im.data[i*4 + 2] = g; im.data[i*4 + 3] = 255; }
+  x.putImageData(im, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t; }
+const boneBump = noiseTex(256, 9, 3, 1.6), gumBump = noiseTex(256, 26, 7, 0.6);
+const toothCol = (x, y) => y > 0.3 ? '#f3eee3' : (y > -0.4 ? '#ece0c4' : '#e3cfa2');
+const M = {};       // mallas
+const ROOT = new THREE.Group(); scene.add(ROOT);
+function mesh(geo, mat, parent = ROOT) { const m = new THREE.Mesh(geo, mat); m.castShadow = m.receiveShadow = true; parent.add(m); return m; }
+const enamel = (planes = [TCUT]) => phys({vertexColors: true, roughness: 0.26, clearcoat: 0.75, clearcoatRoughness: 0.18, sheen: 0.25, sheenColor: '#ffffff'}, planes);
+const TB = [[-8, -14.5, -6.6], [8, 9.6, 6.6]];
+function build() {
+  const st = 0.17;
+  M.tooth = mesh(vcolor(surfaceNets(sdTooth, ...TB, st), toothCol), enamel());
+  M.cav = mesh(vcolor(surfaceNets((x, y, z) => smax(sdTooth(x, y, z), -sdCav(x, y, z), 0.25), ...TB, st), (x, y, z) => sdCav(x, y, z) < 0.35 ? '#e9dcc0' : toothCol(x, y)), enamel());
+  const plugG = surfaceNets((x, y, z) => smax(sdTooth(x, y, z), sdCav(x, y, z), 0.2), [-6, 3.5, -4], [2, 9.6, 4], 0.12);
+  M.decay = mesh(plugG, phys({color: '#4a2f1e', roughness: 0.8}, [TCUT])); M.inlay = mesh(plugG.clone(), phys({color: '#f6f1e6', roughness: 0.22, clearcoat: 0.9, clearcoatRoughness: 0.1}, [TCUT]));
+  M.broken = mesh(vcolor(surfaceNets(sdBroken, ...TB, st), (x, y, z) => { const d = brokenTop(x, z) - y; return d < 0.6 ? '#5a3a24' : (d < 1.1 ? '#a87d55' : toothCol(x, y)); }), enamel());
+  M.prep = mesh(vcolor(surfaceNets(sdPrep, ...TB, st), (x, y) => y > 0.3 ? '#efe0bd' : toothCol(x, y)), enamel());
+  M.core = mesh(surfaceNets(sdCore, [-6.5, 1.0, -5.5], [6.5, 7.2, 5.5], 0.14), phys({color: '#e7c27e', roughness: 0.5}, [TCUT, LIFT]));
+  M.crown = mesh(surfaceNets(sdCrownShell, [-7.5, -0.5, -6.5], [7.5, 9.6, 6.5], 0.14), phys({color: '#f7f3ea', roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.08}, [TCUT]));
+  const pdir = new THREE.Vector3(POST[3] - POST[0], POST[4] - POST[1], 0), plen = pdir.length();
+  const pg = new THREE.CylinderGeometry(0.78, 0.5, plen, 32, 1); pg.translate(0, -plen/2, 0);
+  M.post = mesh(pg, phys({color: '#eef3f6', roughness: 0.3, clearcoat: 0.6, transmission: 0.0}, [TCUT])); M.post.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), pdir.clone().normalize());
+  M.postBase = new THREE.Vector3(POST[0], POST[1], 0);
+  M.gutta = mesh(surfaceNets((x, y, z) => sdCanals(x, y, z) - 0.04, [-5, -13, -2.5], [5, 2.2, 2.5], 0.1), phys({color: '#ef8455', roughness: 0.55}, [TCUT, new THREE.Plane(new THREE.Vector3(0, -1, 0), 99)]));
+  M.guttaClip = M.gutta.material.clippingPlanes[1];
+  M.pulp = mesh(surfaceNets(sdPulp, [-5, -13, -3.2], [5, 4.5, 3.2], 0.1), phys({color: '#c9505c', roughness: 0.5}, [TCUT]));
+  // hueso (con alvéolo y cicatrizado) y encía
+  M.bone = mesh(surfaceNets((x, y, z) => smax(sdBoneBlock(x, y, z), -(sdTooth(x, y, z) - 0.25), 0.3), [-14, -20, -8.5], [14, 1.5, 8.5], 0.3),
+    phys({color: '#e6d5b6', roughness: 0.85, bumpMap: boneBump, bumpScale: 2.2}, [CUT0]));
+  M.boneHealed = mesh(surfaceNets((x, y, z) => smax(sdBoneBlock(x, y, z), -(len3(x/1.4, 0, z/1.4) - 1.0 + 0*y), 0.3), [-14, -20, -8.5], [14, 1.5, 8.5], 0.3), M.bone.material);
+  M.gum = mesh(surfaceNets((x, y, z) => smax(sdGum(x, y, z), -(sdTooth(x, y, z) - 0.05), 0.35), [-14, -7, -9], [14, 2.5, 9], 0.26),
+    phys({color: '#d97f86', roughness: 0.42, clearcoat: 0.35, clearcoatRoughness: 0.4, sheen: 0.6, sheenColor: '#ffd0d6', bumpMap: gumBump, bumpScale: 0.6}, [CUT0]));
+  // implante: tornillo de titanio con roscas (perfil girado) y corona
+  const prof = []; const L = 10.5;
+  for (let i = 0; i <= 120; i++) { const y = -i/120*L, tap = mix(1.85, 1.35, Math.pow(i/120, 1.4)), th = 0.38*(0.5 + 0.5*Math.cos(i/120*L/0.9*Math.PI*2));
+    prof.push(new THREE.Vector2(Math.max(0.2, tap + th - (i > 112 ? (i - 112)*0.18 : 0)), y)); }
+  prof.unshift(new THREE.Vector2(0.01, 0.0), new THREE.Vector2(2.05, 0.0)); prof.push(new THREE.Vector2(0.01, -L)); prof.reverse();
+  M.screw = mesh(new THREE.LatheGeometry(prof, 72), new THREE.MeshPhysicalMaterial({color: '#b8bfc7', metalness: 1, roughness: 0.32, clearcoat: 0.3}));
+  M.icrown = mesh(vcolor(surfaceNets((x, y, z) => smax(sdTooth(x, y, z), -(y - 0.1), 0.2), [-7.5, -0.6, -6.5], [7.5, 9.6, 6.5], 0.15), () => '#f6f2e9'),
+    new THREE.MeshPhysicalMaterial({vertexColors: true, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08}));
+  buildCaps();
+}
+// ===================================================== caras de corte (lámina médica): capas de textura en el plano z = 0
+const CX0 = -14, CX1 = 14, CY0 = -20, CY1 = 10, CS = 30;          // 30 px/mm
+const hash2 = (a, b) => { const s = Math.sin(a*127.1 + b*311.7)*43758.5453; return s - Math.floor(s); };
+const rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+function capLayer(fn, order) {
+  const cw = (CX1 - CX0)*CS, ch = (CY1 - CY0)*CS, cv = document.createElement('canvas'); cv.width = cw; cv.height = ch;
+  const g = cv.getContext('2d'), im = g.createImageData(cw, ch);
+  for (let py = 0; py < ch; py++) for (let px = 0; px < cw; px++) { const x = CX0 + (px + 0.5)/CS, y = CY1 - (py + 0.5)/CS, c = fn(x, y, px, py);
+    if (c) { const i = (py*cw + px)*4, sh = 0.95 + 0.05*hash2(px, py); im.data[i] = c[0]*sh; im.data[i + 1] = c[1]*sh; im.data[i + 2] = c[2]*sh; im.data[i + 3] = 255; } }
+  g.putImageData(im, 0, 0);
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(CX1 - CX0, CY1 - CY0), new THREE.MeshStandardMaterial({map: tex, transparent: true, alphaTest: 0.5, roughness: 0.7, depthWrite: true}));
+  m.position.set((CX0 + CX1)/2, (CY0 + CY1)/2, 0.015 + order*0.002); m.renderOrder = order; ROOT.add(m); return m;
+}
+const P = {enamel: rgb('#f6f2e8'), dentin: rgb('#efd8a8'), cementum: rgb('#dcc290'), pulp: rgb('#cf5b66'), gutta: rgb('#f08a5a'), post: rgb('#f2f6f8'), postF: rgb('#c9d6de'),
+  core: rgb('#e9c98a'), crown: rgb('#f6f3ec'), cement: rgb('#a9bccb'), decay: rgb('#5a3a24'), pdl: rgb('#a8545e'), boneC: rgb('#efe3c9'), boneS: rgb('#e3cfa8'), boneD: rgb('#c9ab7a'), gum: rgb('#e28e95'), gumD: rgb('#c96a73')};
+function trab(x, y) { let m = 9; const gx = Math.floor(x/0.75), gy = Math.floor(y/0.75);
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const cx = (gx + i + hash2(gx + i, gy + j))*0.75, cy = (gy + j + hash2(gy + j, gx + i))*0.75; m = Math.min(m, Math.hypot(x - cx, y - cy)); } return m; }
+function boneGum(x, y, socket) {
+  const crest = crestY(x, 0), inBone = y < crest && y > CY0 + 0.5 && Math.abs(x) < 12.3;
+  const dT = socket ? sdTooth(x, y, 0) : 9;
+  if (socket && dT < 0) return null;
+  if (inBone && dT < 0.22) return P.pdl;
+  if (inBone) { const dc = Math.min(crest - y, 12.3 - Math.abs(x), y - (CY0 + 0.5)); const t = trab(x, y);
+    return dc < 0.9 ? P.boneC : (t < 0.2 + 0.06*hash2(Math.floor(x*3), Math.floor(y*3)) ? P.boneS : (t < 0.27 ? P.boneD : [214, 190, 150])); }
+  if (y < gumTopY(x) && y > -3.6 && Math.abs(x) < 12.4 && (!socket || dT > 0.05)) return y < -1.9 ? P.gumD : P.gum;
+  return null;
+}
+const C = {};
+function buildCaps() {
+  C.bone = capLayer((x, y) => boneGum(x, y, true), 1);
+  C.boneHealed = capLayer((x, y) => { const c = boneGum(x, y, false); return c; }, 1);
+  C.healthy = capLayer((x, y) => { const d = sdTooth(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return P.pulp;
+    return y > 0 && d > -1.25 ? P.enamel : (d > -0.18 && y < 0 ? P.cementum : P.dentin); }, 3);
+  C.crack = capLayer((x, y) => { if (sdTooth(x, y, 0) >= 0 || y > -1 || y < -10) return null; const cx = 3.0 + 0.35*Math.sin(y*2.3) + 0.06*(y + 1); return Math.abs(x - cx) < 0.1 + 0.05*Math.sin(y*7) ? [40, 20, 20] : null; }, 4);
+  C.broken = capLayer((x, y) => { const d = sdBroken(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return P.pulp; if (brokenTop(x, 0) - y < 0.5) return P.decay;
+    return y > 0 && d > -1.25 ? P.enamel : (d > -0.18 && y < 0 ? P.cementum : P.dentin); }, 3);
+  C.prep = capLayer((x, y) => { const d = sdPrep(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return y > 0.6 ? [236, 226, 214] : P.pulp; return d > -0.18 && y < 0 ? P.cementum : P.dentin; }, 3);
+  C.gutta = capLayer((x, y) => sdCanals(x, y, 0) < 0 && y < 1.2 ? P.gutta : null, 4);
+  C.post = capLayer((x, y) => sdPost(x, y, 0) < 0 ? (Math.sin((x - POST[0])*9) > 0.6 ? P.postF : P.post) : null, 6);
+  C.core = capLayer((x, y) => { if (sdPost(x, y, 0) < 0) return null; const inPrep = sdPrep(x, y, 0) < 0, pul = sdPulp(x, y, 0) < 0 && y > 0.6;
+    return (sdCore(x, y, 0) < 0 && !inPrep) || (inPrep && pul) ? P.core : null; }, 5);
+  C.crown = capLayer((x, y) => { const d = sdCrownShell(x, y, 0); if (d >= 0) return null; return d > -0.12 && Math.min(sdCore(x, y, 0), sdPrep(x, y, 0)) < 0.25 ? P.cement : P.crown; }, 7);
+  C.core.material.clippingPlanes = [LIFT];
+  C.gutta.material.clippingPlanes = [M.guttaClip];
+}
+// ===================================================== textos y rótulos
+const $ = id => document.getElementById(id);
+const fade = (el, k, dy = 0) => { el.style.opacity = clamp(k, 0, 1); el.style.transform = `translateY(${(1 - clamp(k, 0, 1))*dy}px)`; };
+const v3 = new THREE.Vector3();
+function label(el, text, p3, k, align = 'r', dy = 0) { el.textContent = text; v3.copy(p3).project(camera); el.dataset.a = align;
+  const x = (v3.x*0.5 + 0.5)*1080, y = (-v3.y*0.5 + 0.5)*1920, w = el.offsetWidth;
+  el.style.left = (align === 'r' ? x + 40 : align === 'l' ? x - 40 - w : x - w/2) + 'px'; el.style.top = (y + dy - el.offsetHeight/2) + 'px'; el.style.opacity = clamp(k, 0, 1); }
+
+// ===================================================== línea de tiempo
+const shown = new Set();
+function show(...ms) { for (const m of Object.values(M)) if (m.isMesh) m.visible = false; for (const c of Object.values(C)) c.visible = false; shown.clear(); ms.forEach(m => { if (m) { m.visible = true; } }); }
+function camAt(p, l) { camera.position.set(...p); camera.lookAt(...l); }
+const lerp3 = (a, b, k) => a.map((v, i) => mix(v, b[i], k));
+function frame(f) {
+  const t = f/FPS;
+  ROOT.position.set(0, 0, 0); ROOT.rotation.set(0, 0, 0); TCUT.constant = 20; LIFT.constant = 99; M.guttaClip.constant = 99;
+  ['title', 'intro', 'l1', 'l2', 'names', 'cta'].forEach(id => $(id).style.opacity = 0); $('flash').style.opacity = 0;
+  for (const k of ['tooth', 'cav', 'decay', 'inlay', 'broken', 'prep', 'core', 'crown', 'post', 'gutta', 'pulp', 'screw', 'icrown']) { M[k].position.set(0, 0, 0); M[k].rotation.set(0, 0, 0); M[k].scale.setScalar(1); }
+  M.post.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), new THREE.Vector3(POST[3] - POST[0], POST[4] - POST[1], 0).normalize());
+  for (const c of Object.values(C)) { c.position.x = (CX0 + CX1)/2; c.position.y = (CY0 + CY1)/2; c.material.opacity = 1; }
+  const flash = (at) => { const k = seg(t, at - 0.05, at + 0.35); if (k > 0 && k < 1) $('flash').style.opacity = 0.85*(1 - k); };
+
+  if (t < T.inc) {                                                // ---------- inicio: molar girando y acercamiento
+    show(M.tooth); const k = eio(seg(t, 0, 6.6));
+    M.tooth.rotation.y = -2.6 + 2.6*eio(seg(t, 0, 6.8)) + 0.4; M.tooth.rotation.x = 0.12*Math.sin(t*0.8);
+    M.tooth.position.y = 1.5;
+    camAt(lerp3([0, 8, 150], [0, 6, 62], k), [0, -0.5, 0]);
+    $('intro').style.opacity = 1; const sp = $('intro').children;
+    [0.05, 1.15, 2.2].forEach((a, i) => fade(sp[i], seg(t, a, a + 0.4)*(1 - seg(t, 4.3, 4.9)), 30));
+  } else if (t < T.cor) {                                         // ---------- incrustación
+    const tl = t - T.inc; flash(T.inc);
+    const cleaned = t >= T.limpia + 1.0, cavMode = t >= T.limpia;
+    show(cavMode ? M.cav : M.cav, M.gum, M.bone, C.bone);
+    camAt(lerp3([2, 30, 72], [0, 26, 64], eio(seg(t, T.inc, T.cor))), [-0.4, 3.0, 0]);
+    // caries: visible hasta que se limpia
+    M.decay.visible = t < T.limpia + 1.2; if (M.decay.visible) { const k = 1 - seg(t, T.limpia + 0.2, T.limpia + 1.2); M.decay.scale.setScalar(Math.max(0.01, k)); M.decay.position.set(-2.0*(1 - k), 7.6*(1 - k), 0.2*(1 - k)); }
+    // molde: una cubeta baja, presiona y sube
+    if (t > T.molde && t < T.lab) { const k = Math.sin(Math.PI*seg(t, T.molde + 0.2, T.lab - 0.1)); M.inlay.visible = false;
+      if (!M.tray) { M.tray = mesh(surfaceNets((x, y, z) => smax(rbox(x, y - 9.5, z, 7.5, 2.6, 6.2, 1.6), -(sdTooth(x, y, z) + 0.05), 0.3), [-9, 5.5, -7.5], [9, 13, 7.5], 0.22),
+        new THREE.MeshPhysicalMaterial({color: '#7fc8b4', roughness: 0.55, transparent: true, opacity: 0.85})); }
+      M.tray.visible = true; M.tray.position.y = mix(9, 0.15, k); }
+    // laboratorio: la pieza aparece arriba, gira, y luego baja y se pega
+    if (t > T.lab) { M.inlay.visible = true; const kin = eback(seg(t, T.lab, T.lab + 0.8)), down = eio(seg(t, T.pega + 0.3, T.pega + 1.8));
+      M.inlay.scale.setScalar(Math.max(0.01, kin)); const hx = -2.0, hy = 7.6, hz = 0.2;
+      M.inlay.position.set(mix(3.0, 0, down), mix(4.2, 0, down), mix(1.5, 0, down)); M.inlay.rotation.y = (1 - down)*(t - T.lab)*1.2;
+      if (down < 1) { M.inlay.position.x += hx*0; } }
+    fade($('title'), seg(t, T.inc + 0.2, T.inc + 0.7)*(1 - seg(t, T.cor - 0.4, T.cor)), -20); $('tk').textContent = 'DAÑO DE HASTA LA MITAD DEL DIENTE'; $('th').textContent = 'Incrustación';
+  } else if (t < T.imp) {                                         // ---------- corona con poste
+    flash(T.cor);
+    const cut = eio(seg(t, T.cor + 2.2, T.conducto - 0.4));
+    TCUT.constant = mix(14, 0, cut);
+    const prepped = t >= T.poste - 0.3;
+    show(prepped ? M.prep : M.broken, M.gum, M.bone, C.bone, M.pulp);
+    if (cut > 0.98) (prepped ? C.prep : C.broken).visible = true;
+    camAt(lerp3([0, 26, 64], [6, 2, 70], eio(seg(t, T.cor + 1.6, T.conducto - 0.3))), lerp3([-0.4, 3.0, 0], [0.5, -2.6, 0], eio(seg(t, T.cor + 1.6, T.conducto - 0.3))));
+    // tratamiento de conducto: la gutapercha sube desde la punta de la raíz
+    const g = seg(t, T.conducto + 0.4, T.poste - 0.4);
+    if (g > 0) { M.gutta.visible = true; C.gutta.visible = cut > 0.98; const lev = mix(-12.5, 1.2, eio(g)); M.guttaClip.constant = lev; M.pulp.visible = t < T.poste - 0.3; }
+    // poste
+    const pk = eio(seg(t, T.poste + 0.2, T.poste + 1.8));
+    if (t > T.poste) { M.post.visible = C.post.visible = true; const off = (1 - pk)*12; const d = new THREE.Vector3(POST[3] - POST[0], POST[4] - POST[1], 0).normalize();
+      M.post.position.copy(M.postBase).addScaledVector(d, -off); C.post.position.x += -d.x*off; C.post.position.y += -d.y*off; }
+    // muñón: crece de abajo hacia arriba
+    if (t > T.base) { M.core.visible = C.core.visible = true; LIFT.constant = mix(1.0, 7.4, eio(seg(t, T.base + 0.1, T.base + 1.8))); }
+    // corona: baja y encaja
+    if (t > T.coronaFija) { M.crown.visible = C.crown.visible = true; const ck = eio(seg(t, T.coronaFija, T.coronaFija + 1.6)); const off = (1 - ck)*14;
+      M.crown.position.y = off; C.crown.position.y += off; }
+    fade($('title'), seg(t, T.cor + 0.2, T.cor + 0.7)*(1 - seg(t, T.imp - 0.4, T.imp)), -20); $('tk').textContent = 'DAÑO MAYOR A LA MITAD'; $('th').textContent = 'Corona con poste';
+    label($('l1'), 'Poste de fibra de vidrio', new THREE.Vector3(2.0, -6.5, 0), seg(t, T.poste + 0.8, T.poste + 1.2)*(1 - seg(t, T.base + 1.5, T.base + 2)), 'l');
+    label($('l2'), 'Muñón', new THREE.Vector3(-4.6, 4.6, 0), seg(t, T.munon, T.munon + 0.4)*(1 - seg(t, T.coronaFija + 1.2, T.coronaFija + 1.6)), 'l');
+  } else if (t < T.cierre) {                                      // ---------- implante
+    flash(T.imp);
+    TCUT.constant = 0;
+    const healed = t >= T.partes - 0.2;
+    show(M.gum, healed ? M.boneHealed : M.bone, healed ? C.boneHealed : C.bone);
+    camAt(lerp3([6, 2, 80], [4, 4, 92], eio(seg(t, T.imp, T.partes))), lerp3([0.5, -2.6, 0], [0.5, -2.2, 0], seg(t, T.imp, T.partes)));
+    // diente con la raíz dañada que se extrae
+    if (t < T.partes - 0.2) { M.tooth.visible = M.pulp.visible = C.healthy.visible = true; C.crack.visible = true; C.crack.material.opacity = 0.5 + 0.5*Math.sin(t*8);
+      const up = eio(seg(t, T.usa + 0.1, T.partes - 0.3))*22; [M.tooth, M.pulp].forEach(m => m.position.y = up); [C.healthy, C.crack].forEach(c => c.position.y += up); }
+    // las dos partes
+    const sx = -6.8, sy = 11, cxp = 6.8, cyp = 2.2;
+    if (t >= T.tornillo - 0.1) { M.screw.visible = true; const kin = eback(seg(t, T.tornillo - 0.1, T.tornillo + 0.5)), dn = eio(seg(t, T.coloca + 0.2, T.meses));
+      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = t*1.2 + dn*12; }
+    if (t >= T.corona - 0.1) { M.icrown.visible = true; const kin = eback(seg(t, T.corona - 0.1, T.corona + 0.5)), on = eio(seg(t, T.pone - 0.3, T.pone + 1.1));
+      M.icrown.scale.setScalar(Math.max(0.01, kin)*mix(0.8, 1, on)); M.icrown.position.set(mix(cxp, 0, on), mix(cyp, -1.9, on), 0); M.icrown.rotation.y = (1 - on)*(t*0.8); }
+    // "algunos meses": el hueso se une al tornillo (brillo suave)
+    if (t > T.meses - 0.3 && t < T.pone) { const k = Math.sin(Math.PI*seg(t, T.meses - 0.3, T.pone - 0.3)); M.screw.material.emissive = new THREE.Color('#2f9fd0'); M.screw.material.emissiveIntensity = 0.35*k; }
+    else { M.screw.material.emissiveIntensity = 0; }
+    fade($('title'), seg(t, T.imp + 0.2, T.imp + 0.7)*(1 - seg(t, T.cierre - 0.4, T.cierre)), -20); $('tk').textContent = 'EL DAÑO LLEGÓ A LA RAÍZ'; $('th').textContent = 'Implante';
+    label($('l1'), 'Tornillo de titanio', new THREE.Vector3(sx, -1.2, 0), seg(t, T.tornillo + 0.2, T.tornillo + 0.6)*(1 - seg(t, T.coloca, T.coloca + 0.4)), 'c');
+    label($('l2'), 'Corona', new THREE.Vector3(cxp, -1.2, 0), seg(t, T.corona + 0.2, T.corona + 0.6)*(1 - seg(t, T.coloca, T.coloca + 0.4)), 'c');
+  } else {                                                        // ---------- cierre: los tres resultados
+    flash(T.cierre); TCUT.constant = 20;
+    show(M.cav, M.inlay, M.crown, M.prep, M.screw, M.icrown);
+    const spin = (t - T.cierre)*0.5, y0 = 18, gx = 14;
+    M.cav.position.set(-gx, y0, 0); M.inlay.position.set(-gx, y0, 0); M.cav.rotation.y = M.inlay.rotation.y = spin;
+    M.prep.position.set(0, y0, 0); M.crown.position.set(0, y0, 0); M.prep.rotation.y = M.crown.rotation.y = spin;
+    M.screw.position.set(gx, y0 - 1.0, 0); M.icrown.position.set(gx, y0 - 0.9, 0); M.screw.rotation.y = M.icrown.rotation.y = spin;
+    M.screw.material.emissiveIntensity = 0;
+    camAt([0, 14, 170], [0, 3, 0]);
+    fade($('names'), seg(t, T.cierre + 0.3, T.cierre + 0.9), 20);
+    fade($('cta'), seg(t, T.agenda - 0.2, T.agenda + 0.4), 40);
+  }
+  renderer.render(scene, camera);
+}
+window.TOTAL_FRAMES = Math.round(DURATION*FPS);
+window.DBG = () => ({v: M.screw.visible, p: M.screw.position.toArray(), s: M.screw.scale.toArray(), parent: !!M.screw.parent, geo: M.screw.geometry.attributes.position.count, bb: (M.screw.geometry.computeBoundingBox(), M.screw.geometry.boundingBox)});
+window.renderFrame = f => { frame(f); return true; };
+window.GPU = (() => { try { const g = renderer.getContext(); const e = g.getExtension('WEBGL_debug_renderer_info'); return e ? g.getParameter(e.UNMASKED_RENDERER_WEBGL) : g.getParameter(g.RENDERER); } catch (e) { return ''; } })();
+build();
+Promise.all([document.fonts.ready, new Promise(r => { const i = $('logo'); i.complete ? r() : (i.onload = r, i.onerror = r); })]).then(() => { window.READY = true; });
+</script></body></html>
