@@ -231,7 +231,7 @@ function buildCaps() {
   C.post = capLayer((x, y) => sdPost(x, y, 0) < 0 ? (Math.sin((x - POST[0])*9) > 0.6 ? P.postF : P.post) : null, 6);
   C.core = capLayer((x, y) => { if (sdPost(x, y, 0) < 0) return null; const inPrep = sdPrep(x, y, 0) < 0, pul = sdPulp(x, y, 0) < 0 && y > -1.5;
     return (sdCore(x, y, 0) < 0 && !inPrep) || (inPrep && pul) || (sdPulp(x, y, 0) < 0 && y > -1.5 && y < 6.4) ? P.core : null; }, 5);
-  C.crown = capLayer((x, y) => { const d = sdCrownShell(x, y, 0); if (d >= 0) return null; return d > -0.12 && Math.min(sdCore(x, y, 0), sdPrep(x, y, 0)) < 0.25 ? P.cement : P.crown; }, 7);
+  C.crown = capLayer((x, y) => { const d = sdCrownShell(x, y, 0); if (d >= 0) return null; const inner = Math.min(sdCore(x, y, 0), sdPrep(x, y, 0)) < 0.25; if (d > -0.12 && inner) return P.cement; return d > -0.17 ? [138, 150, 166] : (d > -0.32 ? [236, 238, 240] : P.crown); }, 7);
   const osseo = w => capLayer((x, y) => { if (y > -2.2 || y < -12.9) return null; const c = boneGum(x, y, false); if (!c || c === P.gum || c === P.gumD) return null;
     const r = Math.abs(x) - (mix(1.85, 1.35, Math.pow(clamp((-2 - y)/10.5, 0, 1), 1.4)) + 0.42); const inB = (r > -0.5 && r < w) || (y < -12.5 + w && y > -13.0 && Math.abs(x) < 1.6 + w); if (!inB) return null; const edge = Math.min(w - r, (-12.5 + w) - y); return edge < 0.16 ? [150, 108, 58] : [214, 178, 120]; }, 2);
   C.os1 = osseo(0.25); C.os2 = osseo(0.55); C.os3 = osseo(0.9);
@@ -325,8 +325,8 @@ function frame(f) {
       const up = eio(seg(t, T.usa + 0.1, T.partes - 0.3))*22; [M.tooth, M.pulp].forEach(m => m.position.y = up); [C.healthy, C.crack].forEach(c => c.position.y += up); }
     // las dos partes
     const sx = -6.8, sy = 11, cxp = 6.8, cyp = 2.2;
-    if (t >= T.tornillo - 0.1) { M.screw.visible = true; const kin = eback(seg(t, T.tornillo - 0.1, T.tornillo + 0.5)), dn = eio(seg(t, T.coloca + 0.2, T.meses));
-      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = 0.6*Math.sin(t*0.9)*(1 - dn) - dn*Math.PI*2*2.5; }
+    if (t >= T.tornillo - 0.1) { M.screw.visible = true; const kin = eback(seg(t, T.tornillo - 0.1, T.tornillo + 0.5)), hz = eio(seg(t, T.coloca + 0.1, T.coloca + 0.8)), dn = eio(seg(t, T.coloca + 0.8, T.meses - 0.1));
+      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, hz), mix(mix(sy, 12.5, hz), -2.0, dn), 0); M.screw.rotation.y = 0.6*Math.sin(t*0.9)*(1 - hz) - dn*Math.PI*2*2.5; }
     if (t >= T.corona - 0.1) { M.icrown.visible = true; const kin = eback(seg(t, T.corona - 0.1, T.corona + 0.5)), on = eio(seg(t, T.final + 0.1, T.final + 1.0));
       M.icrown.scale.setScalar(Math.max(0.01, kin)*mix(0.8, 1, on)); const dn2 = eio(seg(t, T.final + 0.9, T.pone + 0.8)); M.icrown.position.set(mix(cxp, 0, on), mix(cyp, 6.0, on) - dn2*5.0, 0); M.icrown.rotation.y = 0.5*Math.sin(t*0.8)*(1 - on) + (1 - dn2)*Math.PI*2*1.25; }
     // "algunos meses": el hueso se une al tornillo (brillo suave)
