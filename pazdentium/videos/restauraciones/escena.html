@@ -180,8 +180,11 @@ function build() {
       pts.push(new THREE.Vector3(r*Math.cos(a), y, r*Math.sin(a))); }
     M.screw.geometry = new THREE.LatheGeometry([...prof].map(v => new THREE.Vector2(Math.min(v.x, v.y > -0.3 ? 9 : mix(1.85, 1.35, Math.pow(Math.min(1, -v.y/L), 1.4))), v.y)), 72);
     const th = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 900, 0.32, 8), M.screw.material); th.castShadow = true; M.screw.add(th);
-    const ab = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.5, 3.4, 48), M.screw.material); ab.position.y = 1.7; M.screw.add(ab);
-    const fl = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 6), new THREE.MeshStandardMaterial({color: '#59616a', metalness: 1, roughness: 0.4})); fl.position.set(0.7, 3.41, 0); M.screw.add(fl); }
+    const abM = M.screw.material.clone(); abM.flatShading = true; const ab = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.6, 3.4, 6), abM); ab.castShadow = true; ab.position.y = 1.7; M.screw.add(ab);
+    const fl = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 6), new THREE.MeshStandardMaterial({color: '#59616a', metalness: 1, roughness: 0.4})); fl.position.set(0.7, 3.41, 0); M.screw.add(fl);
+    const flM = new THREE.MeshStandardMaterial({color: '#5f6870', metalness: 0.8, roughness: 0.45});
+    for (const a of [0, Math.PI*2/3, Math.PI*4/3]) { const f = new THREE.Mesh(new THREE.BoxGeometry(0.42, 6.5, 0.9), flM); const r = 1.75; f.position.set(r*Math.cos(a), -6.6, r*Math.sin(a)); f.rotation.y = -a; M.screw.add(f); }
+    M.screw.userData.abM = abM; }
   M.icrown = mesh(vcolor(surfaceNets((x, y, z) => smax(sdTooth(x, y, z), -(y - 0.1), 0.2), [-7.5, -0.6, -6.5], [7.5, 9.6, 6.5], 0.15), () => '#f6f2e9'),
     new THREE.MeshPhysicalMaterial({vertexColors: true, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08}));
   buildCaps();
@@ -323,7 +326,7 @@ function frame(f) {
     // las dos partes
     const sx = -6.8, sy = 11, cxp = 6.8, cyp = 2.2;
     if (t >= T.tornillo - 0.1) { M.screw.visible = true; const kin = eback(seg(t, T.tornillo - 0.1, T.tornillo + 0.5)), dn = eio(seg(t, T.coloca + 0.2, T.meses));
-      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = 0.6*Math.sin(t*0.9)*(1 - dn) - dn*Math.PI*2*3.5; }
+      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = 0.6*Math.sin(t*0.9)*(1 - dn) - dn*Math.PI*2*2.5; }
     if (t >= T.corona - 0.1) { M.icrown.visible = true; const kin = eback(seg(t, T.corona - 0.1, T.corona + 0.5)), on = eio(seg(t, T.final + 0.1, T.final + 1.0));
       M.icrown.scale.setScalar(Math.max(0.01, kin)*mix(0.8, 1, on)); const dn2 = eio(seg(t, T.final + 0.9, T.pone + 0.8)); M.icrown.position.set(mix(cxp, 0, on), mix(cyp, 6.0, on) - dn2*5.0, 0); M.icrown.rotation.y = 0.5*Math.sin(t*0.8)*(1 - on) + (1 - dn2)*Math.PI*2*1.25; }
     // "algunos meses": el hueso se une al tornillo (brillo suave)
