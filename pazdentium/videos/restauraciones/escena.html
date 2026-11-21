@@ -71,7 +71,7 @@ const sdPulp = (x, y, z) => smin(smin(rbox(x, y - 2.0, z, 2.9, 0.95, 2.2, 0.8), 
   Math.min(cone(x, y, z, -2.6, 1.5, 0, -3.45, -12.2, 0, 0.5, 0.12, 1.6), cone(x, y, z, 2.55, 1.5, 0, 3.6, -11.4, 0, 0.55, 0.14, 1.6)), 0.5);
 const sdCanals = (x, y, z) => Math.min(cone(x, y, z, -2.6, 1.0, 0, -3.45, -12.2, 0, 0.5, 0.12, 1.6), cone(x, y, z, 2.55, 1.0, 0, 3.6, -11.4, 0, 0.55, 0.14, 1.6));
 // cavidad de la incrustación (mesio-oclusal, menos de la mitad del diente)
-const sdCav = (x, y, z) => { const ex = (x + 2.0)/3.1, ey = (y - 7.6)/3.0, ez = (z - 0.2)/2.7; return (len3(ex, ey, ez) - 1)*2.7; };
+const CAV = [-1.4, 7.9, 0.2]; const sdCav = (x, y, z) => { const ex = (x - CAV[0])/4.5, ey = (y - CAV[1])/4.1, ez = (z - CAV[2])/3.7; return (len3(ex, ey, ez) - 1)*3.7; };
 // corona destruida y diente tallado
 const brokenTop = (x, z) => 2.6 + 0.7*Math.sin(x*1.3 + 0.5)*Math.cos(z*1.1) + 0.5*Math.sin(z*2.1 - x*0.7);
 const sdBroken = (x, y, z) => smax(sdTooth(x, y, z), y - brokenTop(x, z), 0.35);
@@ -150,8 +150,9 @@ function build() {
   const st = 0.17;
   M.tooth = mesh(vcolor(surfaceNets(sdTooth, ...TB, st), toothCol), enamel());
   M.cav = mesh(vcolor(surfaceNets((x, y, z) => smax(sdTooth(x, y, z), -sdCav(x, y, z), 0.25), ...TB, st), (x, y, z) => sdCav(x, y, z) < 0.35 ? '#e9dcc0' : toothCol(x, y)), enamel());
-  const plugG = surfaceNets((x, y, z) => smax(sdTooth(x, y, z), sdCav(x, y, z), 0.2), [-6, 3.5, -4], [2, 9.6, 4], 0.12);
+  const plugG = surfaceNets((x, y, z) => smax(sdTooth(x, y, z), sdCav(x, y, z), 0.2), [-7.5, 2.5, -5.5], [4.5, 10, 5.5], 0.12);
   M.decay = mesh(plugG, phys({color: '#4a2f1e', roughness: 0.8}, [TCUT])); M.inlay = mesh(plugG.clone(), phys({color: '#f6f1e6', roughness: 0.22, clearcoat: 0.9, clearcoatRoughness: 0.1}, [TCUT]));
+  M.halo = mesh(plugG.clone(), new THREE.MeshBasicMaterial({color: '#e0141e', transparent: true, opacity: 0, depthWrite: false, blending: THREE.NormalBlending, side: THREE.DoubleSide}));
   M.broken = mesh(vcolor(surfaceNets(sdBroken, ...TB, st), (x, y, z) => { const d = brokenTop(x, z) - y; return d < 0.6 ? '#5a3a24' : (d < 1.1 ? '#a87d55' : toothCol(x, y)); }), enamel());
   M.prep = mesh(vcolor(surfaceNets(sdPrep, ...TB, st), (x, y) => y > 0.3 ? '#efe0bd' : toothCol(x, y)), enamel());
   M.core = mesh(surfaceNets(sdCore, [-6.5, 1.0, -5.5], [6.5, 7.2, 5.5], 0.14), phys({color: '#e7c27e', roughness: 0.5}, [TCUT, LIFT]));
@@ -175,6 +176,12 @@ function build() {
     prof.push(new THREE.Vector2(Math.max(0.2, tap + th - (i > 112 ? (i - 112)*0.18 : 0)), y)); }
   prof.unshift(new THREE.Vector2(0.01, 0.0), new THREE.Vector2(2.05, 0.0)); prof.push(new THREE.Vector2(0.01, -L)); prof.reverse();
   M.screw = mesh(new THREE.LatheGeometry(prof, 72), new THREE.MeshPhysicalMaterial({color: '#b8bfc7', metalness: 1, roughness: 0.32, clearcoat: 0.3}));
+  { const pts = []; for (let i = 0; i <= 900; i++) { const u = i/900, y = -0.5 - u*(L - 1.3), a = -y/0.95*Math.PI*2, r = mix(1.85, 1.35, Math.pow(-y/L, 1.4)) + 0.05;
+      pts.push(new THREE.Vector3(r*Math.cos(a), y, r*Math.sin(a))); }
+    M.screw.geometry = new THREE.LatheGeometry([...prof].map(v => new THREE.Vector2(Math.min(v.x, v.y > -0.3 ? 9 : mix(1.85, 1.35, Math.pow(Math.min(1, -v.y/L), 1.4))), v.y)), 72);
+    const th = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 900, 0.32, 8), M.screw.material); th.castShadow = true; M.screw.add(th);
+    const ab = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.5, 3.4, 48), M.screw.material); ab.position.y = 1.7; M.screw.add(ab);
+    const fl = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 6), new THREE.MeshStandardMaterial({color: '#59616a', metalness: 1, roughness: 0.4})); fl.position.set(0.7, 3.41, 0); M.screw.add(fl); }
   M.icrown = mesh(vcolor(surfaceNets((x, y, z) => smax(sdTooth(x, y, z), -(y - 0.1), 0.2), [-7.5, -0.6, -6.5], [7.5, 9.6, 6.5], 0.15), () => '#f6f2e9'),
     new THREE.MeshPhysicalMaterial({vertexColors: true, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.08}));
   buildCaps();
@@ -216,12 +223,15 @@ function buildCaps() {
   C.crack = capLayer((x, y) => { if (sdTooth(x, y, 0) >= 0 || y > -1 || y < -10) return null; const cx = 3.0 + 0.35*Math.sin(y*2.3) + 0.06*(y + 1); return Math.abs(x - cx) < 0.1 + 0.05*Math.sin(y*7) ? [40, 20, 20] : null; }, 4);
   C.broken = capLayer((x, y) => { const d = sdBroken(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return P.pulp; if (brokenTop(x, 0) - y < 0.5) return P.decay;
     return y > 0 && d > -1.25 ? P.enamel : (d > -0.18 && y < 0 ? P.cementum : P.dentin); }, 3);
-  C.prep = capLayer((x, y) => { const d = sdPrep(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return y > 0.6 ? [236, 226, 214] : P.pulp; return d > -0.18 && y < 0 ? P.cementum : P.dentin; }, 3);
+  C.prep = capLayer((x, y) => { const d = sdPrep(x, y, 0); if (d >= 0) return null; if (sdPulp(x, y, 0) < 0) return y > -1.5 ? [236, 226, 214] : P.pulp; return d > -0.18 && y < 0 ? P.cementum : P.dentin; }, 3);
   C.gutta = capLayer((x, y) => sdCanals(x, y, 0) < 0 && y < 1.2 ? P.gutta : null, 4);
   C.post = capLayer((x, y) => sdPost(x, y, 0) < 0 ? (Math.sin((x - POST[0])*9) > 0.6 ? P.postF : P.post) : null, 6);
-  C.core = capLayer((x, y) => { if (sdPost(x, y, 0) < 0) return null; const inPrep = sdPrep(x, y, 0) < 0, pul = sdPulp(x, y, 0) < 0 && y > 0.6;
-    return (sdCore(x, y, 0) < 0 && !inPrep) || (inPrep && pul) ? P.core : null; }, 5);
+  C.core = capLayer((x, y) => { if (sdPost(x, y, 0) < 0) return null; const inPrep = sdPrep(x, y, 0) < 0, pul = sdPulp(x, y, 0) < 0 && y > -1.5;
+    return (sdCore(x, y, 0) < 0 && !inPrep) || (inPrep && pul) || (sdPulp(x, y, 0) < 0 && y > -1.5 && y < 6.4) ? P.core : null; }, 5);
   C.crown = capLayer((x, y) => { const d = sdCrownShell(x, y, 0); if (d >= 0) return null; return d > -0.12 && Math.min(sdCore(x, y, 0), sdPrep(x, y, 0)) < 0.25 ? P.cement : P.crown; }, 7);
+  const osseo = w => capLayer((x, y) => { if (y > -2.2 || y < -12.9) return null; const c = boneGum(x, y, false); if (!c || c === P.gum || c === P.gumD) return null;
+    const r = Math.abs(x) - (mix(1.85, 1.35, Math.pow(clamp((-2 - y)/10.5, 0, 1), 1.4)) + 0.42); const inB = (r > -0.5 && r < w) || (y < -12.5 + w && y > -13.0 && Math.abs(x) < 1.6 + w); if (!inB) return null; const edge = Math.min(w - r, (-12.5 + w) - y); return edge < 0.16 ? [150, 108, 58] : [214, 178, 120]; }, 2);
+  C.os1 = osseo(0.25); C.os2 = osseo(0.55); C.os3 = osseo(0.9);
   C.core.material.clippingPlanes = [LIFT];
   C.gutta.material.clippingPlanes = [M.guttaClip];
 }
@@ -260,7 +270,11 @@ function frame(f) {
     show(cavMode ? M.cav : M.cav, M.gum, M.bone, C.bone);
     camAt(lerp3([2, 30, 72], [0, 26, 64], eio(seg(t, T.inc, T.cor))), [-0.4, 3.0, 0]);
     // caries: visible hasta que se limpia
-    M.decay.visible = t < T.limpia + 1.2; if (M.decay.visible) { const k = 1 - seg(t, T.limpia + 0.2, T.limpia + 1.2); M.decay.scale.setScalar(Math.max(0.01, k)); M.decay.position.set(-2.0*(1 - k), 7.6*(1 - k), 0.2*(1 - k)); }
+    M.decay.visible = t < T.limpia + 1.2; if (M.decay.visible) { const k = 1 - seg(t, T.limpia + 0.2, T.limpia + 1.2); M.decay.scale.setScalar(Math.max(0.01, k)); M.decay.position.set(CAV[0]*(1 - k), CAV[1]*(1 - k), CAV[2]*(1 - k)); }
+    // resaltado rojo de la zona dañada mientras dice "la mitad del diente o menos"
+    { const hl = seg(t, 8.9, 9.4)*(1 - seg(t, T.limpia - 0.2, T.limpia + 0.3)), pu = 0.7 + 0.3*Math.sin((t - 8.9)*7.0);
+      M.decay.material.color.set('#4a2f1e').lerp(new THREE.Color('#c80d16'), hl); M.decay.material.emissive.set('#ff0000').multiplyScalar(0.28*hl*pu);
+      M.halo.visible = hl > 0.01 && M.decay.visible; if (M.halo.visible) { const sc = 1.10 + 0.05*pu; M.halo.scale.setScalar(sc); M.halo.position.set(-CAV[0]*(sc - 1), -CAV[1]*(sc - 1), -CAV[2]*(sc - 1)); M.halo.material.opacity = 0.3*hl*pu; } }
     // molde: una cubeta baja, presiona y sube
     if (t > T.molde && t < T.lab) { const k = Math.sin(Math.PI*seg(t, T.molde + 0.2, T.lab - 0.1)); M.inlay.visible = false;
       if (!M.tray) { M.tray = mesh(surfaceNets((x, y, z) => smax(rbox(x, y - 9.5, z, 7.5, 2.6, 6.2, 1.6), -(sdTooth(x, y, z) + 0.05), 0.3), [-9, 5.5, -7.5], [9, 13, 7.5], 0.22),
@@ -270,6 +284,7 @@ function frame(f) {
     if (t > T.lab) { M.inlay.visible = true; const kin = eback(seg(t, T.lab, T.lab + 0.8)), down = eio(seg(t, T.pega + 0.3, T.pega + 1.8));
       M.inlay.scale.setScalar(Math.max(0.01, kin)); const hx = -2.0, hy = 7.6, hz = 0.2;
       M.inlay.position.set(mix(3.0, 0, down), mix(4.2, 0, down), mix(1.5, 0, down)); M.inlay.rotation.y = (1 - down)*(t - T.lab)*1.2;
+      { const wk = eio(seg(t, T.pega + 1.3, T.pega + 2.3)); M.inlay.material.color.set('#2fa4e8').lerp(new THREE.Color('#f6f1e6'), wk); M.inlay.material.emissive.set('#1f9be0').multiplyScalar(1.3*(1 - wk)); M.inlay.material.clearcoat = mix(0.05, 0.9, wk); M.inlay.material.envMapIntensity = mix(0.25, 1, wk); }
       if (down < 1) { M.inlay.position.x += hx*0; } }
     fade($('title'), seg(t, T.inc + 0.2, T.inc + 0.7)*(1 - seg(t, T.cor - 0.4, T.cor)), -20); $('tk').textContent = 'DAÑO DE HASTA LA MITAD DEL DIENTE'; $('th').textContent = 'Incrustación';
   } else if (t < T.imp) {                                         // ---------- corona con poste
@@ -292,6 +307,7 @@ function frame(f) {
     // corona: baja y encaja
     if (t > T.coronaFija) { M.crown.visible = C.crown.visible = true; const ck = eio(seg(t, T.coronaFija, T.coronaFija + 1.6)); const off = (1 - ck)*14;
       M.crown.position.y = off; C.crown.position.y += off; }
+    if (cut > 0.98) { M.post.visible = M.core.visible = M.crown.visible = M.gutta.visible = M.pulp.visible = false; }
     fade($('title'), seg(t, T.cor + 0.2, T.cor + 0.7)*(1 - seg(t, T.imp - 0.4, T.imp)), -20); $('tk').textContent = 'DAÑO MAYOR A LA MITAD'; $('th').textContent = 'Corona con poste';
     label($('l1'), 'Poste de fibra de vidrio', new THREE.Vector3(2.0, -6.5, 0), seg(t, T.poste + 0.8, T.poste + 1.2)*(1 - seg(t, T.base + 1.5, T.base + 2)), 'l');
     label($('l2'), 'Muñón', new THREE.Vector3(-4.6, 4.6, 0), seg(t, T.munon, T.munon + 0.4)*(1 - seg(t, T.coronaFija + 1.2, T.coronaFija + 1.6)), 'l');
@@ -307,22 +323,23 @@ function frame(f) {
     // las dos partes
     const sx = -6.8, sy = 11, cxp = 6.8, cyp = 2.2;
     if (t >= T.tornillo - 0.1) { M.screw.visible = true; const kin = eback(seg(t, T.tornillo - 0.1, T.tornillo + 0.5)), dn = eio(seg(t, T.coloca + 0.2, T.meses));
-      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = t*1.2 + dn*12; }
-    if (t >= T.corona - 0.1) { M.icrown.visible = true; const kin = eback(seg(t, T.corona - 0.1, T.corona + 0.5)), on = eio(seg(t, T.pone - 0.3, T.pone + 1.1));
-      M.icrown.scale.setScalar(Math.max(0.01, kin)*mix(0.8, 1, on)); M.icrown.position.set(mix(cxp, 0, on), mix(cyp, -1.9, on), 0); M.icrown.rotation.y = (1 - on)*(t*0.8); }
+      M.screw.scale.setScalar(Math.max(0.01, kin)); M.screw.position.set(mix(sx, 0, dn), mix(sy, -2.0, dn), 0); M.screw.rotation.y = 0.6*Math.sin(t*0.9)*(1 - dn) - dn*Math.PI*2*3.5; }
+    if (t >= T.corona - 0.1) { M.icrown.visible = true; const kin = eback(seg(t, T.corona - 0.1, T.corona + 0.5)), on = eio(seg(t, T.final + 0.1, T.final + 1.0));
+      M.icrown.scale.setScalar(Math.max(0.01, kin)*mix(0.8, 1, on)); const dn2 = eio(seg(t, T.final + 0.9, T.pone + 0.8)); M.icrown.position.set(mix(cxp, 0, on), mix(cyp, 6.0, on) - dn2*5.0, 0); M.icrown.rotation.y = 0.5*Math.sin(t*0.8)*(1 - on) + (1 - dn2)*Math.PI*2*1.25; }
     // "algunos meses": el hueso se une al tornillo (brillo suave)
     if (t > T.meses - 0.3 && t < T.pone) { const k = Math.sin(Math.PI*seg(t, T.meses - 0.3, T.pone - 0.3)); M.screw.material.emissive = new THREE.Color('#2f9fd0'); M.screw.material.emissiveIntensity = 0.35*k; }
     else { M.screw.material.emissiveIntensity = 0; }
+    if (healed && t > T.meses) { const g = seg(t, T.meses + 0.2, T.final - 0.2), step = g < 0.33 ? C.os1 : g < 0.66 ? C.os2 : C.os3; step.visible = true; }
     fade($('title'), seg(t, T.imp + 0.2, T.imp + 0.7)*(1 - seg(t, T.cierre - 0.4, T.cierre)), -20); $('tk').textContent = 'EL DAÑO LLEGÓ A LA RAÍZ'; $('th').textContent = 'Implante';
     label($('l1'), 'Tornillo de titanio', new THREE.Vector3(sx, -1.2, 0), seg(t, T.tornillo + 0.2, T.tornillo + 0.6)*(1 - seg(t, T.coloca, T.coloca + 0.4)), 'c');
     label($('l2'), 'Corona', new THREE.Vector3(cxp, -1.2, 0), seg(t, T.corona + 0.2, T.corona + 0.6)*(1 - seg(t, T.coloca, T.coloca + 0.4)), 'c');
   } else {                                                        // ---------- cierre: los tres resultados
     flash(T.cierre); TCUT.constant = 20;
-    show(M.cav, M.inlay, M.crown, M.prep, M.screw, M.icrown);
+    show(M.cav, M.inlay, M.crown, M.prep, M.screw, M.icrown); M.inlay.material.color.set('#f6f1e6'); M.inlay.material.emissive.set(0); M.inlay.material.clearcoat = 0.9; M.inlay.material.envMapIntensity = 1;
     const spin = (t - T.cierre)*0.5, y0 = 18, gx = 14;
     M.cav.position.set(-gx, y0, 0); M.inlay.position.set(-gx, y0, 0); M.cav.rotation.y = M.inlay.rotation.y = spin;
     M.prep.position.set(0, y0, 0); M.crown.position.set(0, y0, 0); M.prep.rotation.y = M.crown.rotation.y = spin;
-    M.screw.position.set(gx, y0 - 1.0, 0); M.icrown.position.set(gx, y0 - 0.9, 0); M.screw.rotation.y = M.icrown.rotation.y = spin;
+    M.screw.position.set(gx, y0 - 4.2, 0); M.icrown.position.set(gx, y0 - 0.9, 0); M.screw.rotation.y = M.icrown.rotation.y = spin;
     M.screw.material.emissiveIntensity = 0;
     camAt([0, 14, 170], [0, 3, 0]);
     fade($('names'), seg(t, T.cierre + 0.3, T.cierre + 0.9), 20);
